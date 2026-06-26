@@ -18,12 +18,12 @@ export const ScreenWrapper: React.FC<ScreenWrapperProps> = ({ children, style })
         { paddingTop: insets.top, paddingBottom: insets.bottom },
         style
       ]}
-      pointerEvents="box-none"
     >
       <StatusBar style="light" />
       {children}
     </View>
   );
+
 };
 
 const styles = StyleSheet.create({

@@ -1,176 +1,240 @@
-import { useRouter } from "expo-router";
-import { Eye, EyeOff } from "lucide-react-native";
-import React, { useState } from "react";
-import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, Pressable, View } from "react-native";
-import { ScreenWrapper } from "../../components/common/ScreenWrapper";
-import { theme } from "../../config/constants/theme";
-import { useAuthStore } from "../../store/slices/authStore";
+import { useRouter } from 'expo-router';
+import { Eye, EyeOff } from 'lucide-react-native';
+import React, { useState } from 'react';
+import {
+  ActivityIndicator, Alert, StyleSheet, Text, TextInput, Pressable, View, KeyboardAvoidingView, Platform,
+} from 'react-native';
+import { theme } from '../../config/constants/theme';
+import { useAuthStore } from '../../store/slices/authStore';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
 export default function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const { login, register, isLoading, error } = useAuthStore();
-  const router = useRouter();
 
   const handleAuth = async () => {
     if (!email || !password || (!isLogin && !name)) {
-      Alert.alert("Error", "Please fill in all fields");
+      Alert.alert('Missing Fields', 'Please fill in all fields.');
       return;
     }
-
     try {
       if (isLogin) {
         await login({ email, password });
       } else {
         await register({ name, email, password });
       }
-      // router.replace('/(tabs)'); // Root layout will handle navigation if we react to isAuthenticated
     } catch (err: any) {
-      Alert.alert("Auth Error", err.response?.data?.message || "Something went wrong");
+      Alert.alert('Error', err.response?.data?.message || 'Something went wrong. Check your connection.');
     }
   };
 
   return (
-    <ScreenWrapper>
-      <View style={styles.container}>
-        <Text style={styles.title}>{isLogin ? "Welcome Back" : "Join Dotivo"}</Text>
-        <Text style={styles.subtitle}>
-          {isLogin ? "Sign in to track your wins today" : "Create an account to start your grid"}
-        </Text>
+    <SafeAreaView style={styles.safe}>
+      <StatusBar style="light" />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.container}>
+          {/* Logo area */}
+          <View style={styles.logoArea}>
+            <View style={styles.logoBox}>
+              <View style={styles.logoGrid}>
+                {[1,1,0,1,0,1,1,0,1].map((f, i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.logoDot,
+                      f ? styles.logoDotFilled : styles.logoDotEmpty,
+                    ]}
+                  />
+                ))}
+              </View>
+            </View>
+            <Text style={styles.appName}>DOTIVO</Text>
+            <Text style={styles.appTagline}>Your momentum, visualized.</Text>
+          </View>
 
-        {!isLogin && (
-          <TextInput
-            placeholder="Full Name"
-            placeholderTextColor={theme.colors.textMuted}
-            style={styles.input}
-            value={name}
-            onChangeText={setName}
-            onChange={(e) => setName(e.nativeEvent.text)}
-            autoCapitalize="words"
-          />
-        )}
+          {/* Form Card */}
+          <View style={styles.card}>
+            <Text style={styles.title}>{isLogin ? 'Welcome back' : 'Create account'}</Text>
+            <Text style={styles.subtitle}>
+              {isLogin ? 'Sign in to track your wins today.' : 'Start your consistency grid.'}
+            </Text>
 
-        <TextInput
-          placeholder="Email address"
-          placeholderTextColor={theme.colors.textMuted}
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          onChange={(e) => setEmail(e.nativeEvent.text)}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-
-        <View style={styles.passwordContainer}>
-          <TextInput
-            placeholder="Password"
-            placeholderTextColor={theme.colors.textMuted}
-            style={styles.passwordInput}
-            value={password}
-            onChangeText={setPassword}
-            onChange={(e) => setPassword(e.nativeEvent.text)}
-            secureTextEntry={!showPassword}
-          />
-          <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-            {showPassword ? (
-              <EyeOff size={20} color={theme.colors.textMuted} />
-            ) : (
-              <Eye size={20} color={theme.colors.textMuted} />
+            {!isLogin && (
+              <TextInput
+                placeholder="Full Name"
+                placeholderTextColor={theme.colors.textMuted}
+                style={styles.input}
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="words"
+              />
             )}
+
+            <TextInput
+              placeholder="Email address"
+              placeholderTextColor={theme.colors.textMuted}
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            <View style={styles.passwordRow}>
+              <TextInput
+                placeholder="Password"
+                placeholderTextColor={theme.colors.textMuted}
+                style={styles.passwordInput}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+              />
+              <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+                {showPassword ? (
+                  <EyeOff size={20} color={theme.colors.textMuted} />
+                ) : (
+                  <Eye size={20} color={theme.colors.textMuted} />
+                )}
+              </Pressable>
+            </View>
+
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+            <Pressable
+              style={({ pressed }) => [styles.submitBtn, { opacity: pressed || isLoading ? 0.8 : 1 }]}
+              onPress={handleAuth}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.submitBtnText}>{isLogin ? 'Sign In' : 'Create Account'}</Text>
+              )}
+            </Pressable>
+          </View>
+
+          {/* Toggle */}
+          <Pressable
+            onPress={() => setIsLogin(!isLogin)}
+            style={({ pressed }) => [styles.switchBtn, { opacity: pressed ? 0.7 : 1 }]}
+          >
+            <Text style={styles.switchText}>
+              {isLogin ? "Don't have an account? " : 'Already have an account? '}
+              <Text style={styles.switchTextBold}>{isLogin ? 'Sign up' : 'Sign in'}</Text>
+            </Text>
           </Pressable>
         </View>
-
-        <Pressable
-          style={({ pressed }) => [styles.button, { opacity: pressed ? 0.7 : 1 }]}
-          onPress={handleAuth}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>{isLogin ? "Login" : "Create Account"}</Text>
-          )}
-        </Pressable>
-
-        <Pressable
-          onPress={() => setIsLogin(!isLogin)}
-          style={({ pressed }) => [styles.switchButton, { opacity: pressed ? 0.7 : 1 }]}
-        >
-          <Text style={styles.switchText}>
-            {isLogin ? "Don't have an account? Sign up" : "Already have an account? Login"}
-          </Text>
-        </Pressable>
-      </View>
-    </ScreenWrapper>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: theme.colors.background },
+  flex: { flex: 1 },
   container: {
     flex: 1,
-    justifyContent: "center",
-    padding: theme.spacing.l,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingBottom: 32,
+  },
+  logoArea: { alignItems: 'center', marginBottom: 32 },
+  logoBox: {
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.radii.xl,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.primaryBorder,
+    marginBottom: 14,
+  },
+  logoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, width: 68 },
+  logoDot: { width: 18, height: 18, borderRadius: 4 },
+  logoDotFilled: { backgroundColor: theme.colors.primary },
+  logoDotEmpty: { backgroundColor: theme.colors.border },
+  appName: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: theme.colors.text,
+    letterSpacing: 6,
+  },
+  appTagline: {
+    fontSize: 14,
+    color: theme.colors.textMuted,
+    marginTop: 6,
+    letterSpacing: 0.3,
+  },
+  card: {
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.radii.xl,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: 20,
   },
   title: {
-    fontSize: 32,
-    fontWeight: "bold",
+    fontSize: 22,
+    fontWeight: '800',
     color: theme.colors.text,
-    textAlign: "center",
-    marginBottom: theme.spacing.s,
+    marginBottom: 6,
+    letterSpacing: -0.3,
   },
   subtitle: {
-    fontSize: theme.typography.body.fontSize,
+    fontSize: 14,
     color: theme.colors.textMuted,
-    textAlign: "center",
-    marginBottom: theme.spacing.xl,
+    marginBottom: 22,
   },
   input: {
-    backgroundColor: theme.colors.card,
+    backgroundColor: theme.colors.backgroundAlt,
     borderRadius: theme.radii.m,
-    padding: theme.spacing.m,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     color: theme.colors.text,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    marginBottom: theme.spacing.m,
+    marginBottom: 12,
+    fontSize: 16,
   },
-  passwordContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: theme.colors.card,
+  passwordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.backgroundAlt,
     borderRadius: theme.radii.m,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    marginBottom: theme.spacing.m,
+    marginBottom: 16,
   },
   passwordInput: {
     flex: 1,
-    padding: theme.spacing.m,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     color: theme.colors.text,
-  },
-  eyeIcon: {
-    padding: theme.spacing.m,
-  },
-  button: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.radii.m,
-    padding: theme.spacing.m,
-    alignItems: "center",
-    marginTop: theme.spacing.m,
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "bold",
     fontSize: 16,
   },
-  switchButton: {
-    marginTop: theme.spacing.l,
-    alignItems: "center",
+  eyeBtn: { padding: 14 },
+  errorText: {
+    color: theme.colors.error,
+    fontSize: 13,
+    marginBottom: 12,
+    textAlign: 'center',
   },
-  switchText: {
-    color: theme.colors.primary,
-    fontSize: 14,
+  submitBtn: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.radii.m,
+    padding: 15,
+    alignItems: 'center',
+    marginTop: 4,
   },
+  submitBtnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  switchBtn: { alignItems: 'center' },
+  switchText: { color: theme.colors.textMuted, fontSize: 14 },
+  switchTextBold: { color: theme.colors.primary, fontWeight: '700' },
 });

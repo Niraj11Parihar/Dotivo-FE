@@ -23,6 +23,7 @@ interface AuthState {
   logout: () => Promise<void>;
   checkToken: () => Promise<void>;
   fetchProfile: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -60,14 +61,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ user: null, token: null, isAuthenticated: false });
   },
 
+  deleteAccount: async () => {
+    await authService.logout();
+    set({ user: null, token: null, isAuthenticated: false });
+  },
+
   checkToken: async () => {
     try {
       const token = await AsyncStorage.getItem('access_token');
       if (token) {
-        set({ token, isAuthenticated: true });
+        // Set token immediately so axios interceptor has it before any fetches
+        set({ token, isAuthenticated: true, isInitialized: true });
+        // Validate token by fetching profile in background; only log out on explicit 401
         await get().fetchProfile();
+      } else {
+        set({ isInitialized: true });
       }
-      set({ isInitialized: true });
     } catch (e) {
       set({ isInitialized: true });
     }
@@ -77,10 +86,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const user = await userService.getProfile();
       set({ user });
-    } catch (error) {
-      console.error('Failed to fetch profile:', error);
-      // If profile fails, maybe token is invalid
-      await get().logout();
+    } catch (error: any) {
+      const status = error?.response?.status;
+      if (status === 401) {
+        // Token is expired or invalid — force re-login
+        console.log('[Auth] Token expired, logging out');
+        await get().logout();
+      }
+      // For network errors (no internet, server down) — keep user logged in
+      console.log('[Auth] Profile fetch failed (network?):', error?.message);
     }
   }
 }));

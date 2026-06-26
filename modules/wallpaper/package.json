@@ -1,0 +1,9 @@
+{
+  "name": "expo-wallpaper",
+  "version": "0.1.0",
+  "main": "index.ts",
+  "expo": {
+    "name": "Dotivo Wallpaper",
+    "slug": "dotivo-wallpaper"
+  }
+}

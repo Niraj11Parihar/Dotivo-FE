@@ -1,7 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = 'http://192.168.1.4:3000'; // Using local IP for mobile sync
+const BASE_URL = 'http://192.168.1.6:3000'; // Using local IP for mobile sync
 const api = axios.create({
   baseURL: BASE_URL,
   headers: {
@@ -45,7 +45,15 @@ export const userService = {
     const response = await api.get('/users/me');
     return response.data;
   },
-};  
+  deleteAccount: async () => {
+    const response = await api.delete('/users/me');
+    return response.data;
+  },
+  exportData: async () => {
+    const response = await api.get('/users/me/export');
+    return response.data;
+  },
+};
 
 // Goal Services
 export const goalService = {
@@ -59,6 +67,10 @@ export const goalService = {
   },
   deleteTemplate: async (id: string) => {
     const response = await api.delete(`/goals/${id}`);
+    return response.data;
+  },
+  updateTemplate: async (id: string, data: any) => {
+    const response = await api.put(`/goals/${id}`, data);
     return response.data;
   },
 };

@@ -4,7 +4,7 @@
     "slug": "dotivo",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./.assets/images/dotivo-icon.png",
+    "icon": "./.assets/images/icon.png",
     "scheme": "dotivo",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -14,7 +14,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#0F172A",
-        "foregroundImage": "./.assets/images/dotivo-icon.png"
+        "foregroundImage": "./.assets/images/icon.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -40,7 +40,24 @@
       ],
       "expo-sqlite",
       "./src/plugins/withWallpaper.js",
-      "expo-secure-store"
+      "./src/plugins/withAndroidFixes.js",
+      "expo-secure-store",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "buildToolsVersion": "36.0.0",
+            "newArchEnabled": true
+          },
+          "ios": {
+            "newArchEnabled": true
+          }
+        }
+      ],
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

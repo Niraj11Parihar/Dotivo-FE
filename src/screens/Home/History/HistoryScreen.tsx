@@ -1,199 +1,472 @@
-import React, { useEffect } from "react";
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Card } from "../../../components/common/Card";
-import { ScreenWrapper } from "../../../components/common/ScreenWrapper";
-import { theme } from "../../../config/constants/theme";
-import { planService } from "../../../config/restClient";
-import { useGoalStore } from "../../../store/slices/goalStore";
-export default function HistoryScreen() {
-  const { history, fetchHistory, isLoading, currentStreak, bestStreak, greenDaysThisMonth } = useGoalStore();
+import React, { useEffect, useRef, useCallback } from 'react';
+import {
+  ActivityIndicator, Alert, ScrollView, StyleSheet, Text,
+  TouchableOpacity, View, Platform, Share,
+} from 'react-native';
+import { Card } from '../../../components/common/Card';
+import { ScreenWrapper } from '../../../components/common/ScreenWrapper';
+import { theme } from '../../../config/constants/theme';
+import { useGoalStore } from '../../../store/slices/goalStore';
+import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
 
-  const handleExport = async () => {
-    try {
-      Alert.alert("Generating Grid...", "Your 30-day motivation wallpaper is being prepared.");
-      await planService.exportWallpaper();
-      Alert.alert("Success", "Wallpaper generated! Check your backend / S3 URL.");
-    } catch (error) {
-      Alert.alert("Export Failed", "Make sure the wallpaper export backend is implemented.");
-    }
-  };
+const DAY_NAMES_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function interpolateColor(score: number): string {
+  const t = Math.max(0, Math.min(1, score));
+  const from = { r: 0x1E, g: 0x2D, b: 0x45 };
+  const to = { r: 0x10, g: 0xB9, b: 0x81 };
+  const r = Math.round(from.r + (to.r - from.r) * t);
+  const g = Math.round(from.g + (to.g - from.g) * t);
+  const b = Math.round(from.b + (to.b - from.b) * t);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <View style={statStyles.card}>
+      <Text style={statStyles.label}>{label}</Text>
+      <Text style={statStyles.value}>{value}</Text>
+      {sub ? <Text style={statStyles.sub}>{sub}</Text> : null}
+    </View>
+  );
+}
+
+const statStyles = StyleSheet.create({
+  card: {
+    flex: 1,
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.radii.l,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+  },
+  label: { color: theme.colors.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 6, textAlign: 'center' },
+  value: { color: theme.colors.primary, fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
+  sub: { color: theme.colors.textMuted, fontSize: 10, marginTop: 3 },
+});
+
+export default function HistoryScreen() {
+  const {
+    history, fetchHistory, isLoading,
+    currentStreak, bestStreak, greenDaysThisMonth,
+    weeklyStats, badges, historyRange, setHistoryRange,
+  } = useGoalStore();
+
+  const shareRef = useRef<View>(null);
 
   useEffect(() => {
-    fetchHistory();
+    fetchHistory(historyRange);
   }, []);
 
-  const greenDays = history.filter((d) => d.status === "green").length;
+  const greenDays = history.filter((d) => d.status === 'green').length;
+
+  const handleShareCard = useCallback(async () => {
+    try {
+      if (Platform.OS === 'web') {
+        Alert.alert('Not supported', 'Sharing is not supported on web.');
+        return;
+      }
+      const uri = await captureRef(shareRef, { format: 'png', quality: 1 });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'image/png',
+          dialogTitle: 'Share your Dotivo progress',
+        });
+      } else {
+        await Share.share({ url: uri });
+      }
+    } catch (e) {
+      Alert.alert('Share failed', 'Please run a development build to enable sharing.');
+    }
+  }, []);
+
+  const RANGE_OPTIONS: Array<7 | 30 | 90> = [7, 30, 90];
 
   return (
     <ScreenWrapper>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Header */}
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>History</Text>
-            <Text style={styles.subtitle}>Your 30-day momentum grid.</Text>
+            <Text style={styles.subtitle}>Your momentum over time.</Text>
           </View>
-          <TouchableOpacity style={styles.exportButton} onPress={handleExport}>
-            <Text style={styles.exportButtonText}>Export Wallpaper</Text>
+          <TouchableOpacity style={styles.shareBtn} onPress={handleShareCard}>
+            <Text style={styles.shareBtnText}>Share 📤</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.statsRow}>
-          <Card style={styles.statCard}>
-            <Text style={styles.statLabel}>Green Days (30d)</Text>
-            <Text style={styles.statValue}>{greenDays}</Text>
-          </Card>
-          <Card style={styles.statCard}>
-            <Text style={styles.statLabel}>Streak</Text>
-            <Text style={styles.statValue}>{currentStreak > 0 ? `🔥 ${currentStreak}d` : '—'}</Text>
-          </Card>
-        </View>
-        <View style={styles.statsRow}>
-          <Card style={styles.statCard}>
-            <Text style={styles.statLabel}>Best Streak</Text>
-            <Text style={styles.statValue}>{bestStreak > 0 ? `${bestStreak}d` : '—'}</Text>
-          </Card>
-          <Card style={styles.statCard}>
-            <Text style={styles.statLabel}>Wins This Month</Text>
-            <Text style={styles.statValue}>{greenDaysThisMonth}</Text>
-          </Card>
+        {/* Range Toggle */}
+        <View style={styles.rangeRow}>
+          {RANGE_OPTIONS.map(r => (
+            <TouchableOpacity
+              key={r}
+              style={[styles.rangeBtn, historyRange === r && styles.rangeBtnActive]}
+              onPress={() => setHistoryRange(r)}
+            >
+              <Text style={[styles.rangeBtnText, historyRange === r && styles.rangeBtnTextActive]}>
+                {r}d
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        <View style={styles.gridSection}>
-          <Text style={styles.sectionTitle}>30-Day Grid</Text>
-          {isLoading ? (
-            <ActivityIndicator color={theme.colors.primary} />
-          ) : (
-            <View style={styles.grid}>
-              {Array.from({ length: 30 }).map((_, i) => {
-                const day = history[i];
-                return (
-                  <View
-                    key={i}
-                    style={[
-                      styles.dot,
-                      day?.status === "green" && styles.dotGreen,
-                      day?.status === "partial" && styles.dotPartial,
-                    ]}
-                  />
-                );
-              })}
+        {/* Stats Row */}
+        <View style={styles.statsRow}>
+          <StatCard
+            label="GREEN DAYS"
+            value={String(greenDays)}
+            sub={`of ${historyRange} days`}
+          />
+          <StatCard
+            label="STREAK"
+            value={currentStreak > 0 ? `🔥 ${currentStreak}d` : '—'}
+            sub="current"
+          />
+        </View>
+        <View style={styles.statsRow}>
+          <StatCard
+            label="BEST STREAK"
+            value={bestStreak > 0 ? `${bestStreak}d` : '—'}
+          />
+          <StatCard
+            label="THIS MONTH"
+            value={String(greenDaysThisMonth)}
+            sub="green days"
+          />
+        </View>
+
+        {/* Shareable 30-Day Grid Card */}
+        <View ref={shareRef} collapsable={false} style={styles.shareCard}>
+          <View style={styles.shareCardHeader}>
+            <Text style={styles.shareCardTitle}>DOTIVO</Text>
+            <Text style={styles.shareCardSub}>{historyRange}-Day Momentum</Text>
+          </View>
+          <View style={styles.grid}>
+            {Array.from({ length: historyRange }).map((_, i) => {
+              const day = history[i];
+              const score = day?.completionScore ?? 0;
+              const dotColor = day
+                ? interpolateColor(score)
+                : theme.colors.separator;
+              const isToday = i === 0;
+              return (
+                <View
+                  key={i}
+                  style={[
+                    styles.dot,
+                    { backgroundColor: dotColor },
+                    isToday && styles.dotToday,
+                  ]}
+                />
+              );
+            })}
+          </View>
+          <View style={styles.shareLegend}>
+            <View style={styles.legendItem}>
+              <View style={[styles.dot, { backgroundColor: theme.colors.primary }]} />
+              <Text style={styles.legendText}>Win</Text>
             </View>
-          )}
+            <View style={styles.legendItem}>
+              <View style={[styles.dot, { backgroundColor: interpolateColor(0.5) }]} />
+              <Text style={styles.legendText}>Partial</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.dot, { backgroundColor: theme.colors.border }]} />
+              <Text style={styles.legendText}>Missed</Text>
+            </View>
+            <Text style={styles.shareWatermark}>Dotivo App</Text>
+          </View>
         </View>
 
-        <View style={styles.legend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.dot, styles.dotGreen]} />
-            <Text style={styles.legendText}>Win (Daily Min Met)</Text>
+        {/* Weekly Review */}
+        {weeklyStats && weeklyStats.last7DayScores.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Weekly Review</Text>
+            <View style={styles.reviewCard}>
+              {/* 7-day bar chart */}
+              <Text style={styles.reviewSubtitle}>Last 7 days</Text>
+              <View style={styles.barChart}>
+                {(weeklyStats.last7DayScores.length === 7
+                  ? weeklyStats.last7DayScores
+                  : Array.from({ length: 7 }, (_, i) => weeklyStats.last7DayScores[i] ?? 0)
+                ).map((score, i) => {
+                  const dayIdx = (new Date().getDay() - 6 + i + 7) % 7;
+                  return (
+                    <View key={i} style={styles.barColumn}>
+                      <View style={styles.barTrack}>
+                        <View
+                          style={[
+                            styles.barFill,
+                            {
+                              height: `${Math.max(score * 100, score > 0 ? 5 : 0)}%`,
+                              backgroundColor: score >= 1
+                                ? theme.colors.primary
+                                : score > 0
+                                ? theme.colors.warning
+                                : theme.colors.border,
+                            },
+                          ]}
+                        />
+                      </View>
+                      <Text style={styles.barLabel}>{DAY_NAMES_SHORT[dayIdx][0]}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+
+              {/* Best / Worst day */}
+              <View style={styles.reviewStats}>
+                <View style={styles.reviewStat}>
+                  <Text style={styles.reviewStatEmoji}>💪</Text>
+                  <View>
+                    <Text style={styles.reviewStatLabel}>Best day</Text>
+                    <Text style={styles.reviewStatValue}>
+                      {DAY_NAMES_SHORT[weeklyStats.bestDayOfWeek]}
+                    </Text>
+                  </View>
+                </View>
+                <View style={[styles.reviewStat, styles.reviewStatRight]}>
+                  <Text style={styles.reviewStatEmoji}>📉</Text>
+                  <View>
+                    <Text style={styles.reviewStatLabel}>Needs work</Text>
+                    <Text style={styles.reviewStatValue}>
+                      {DAY_NAMES_SHORT[weeklyStats.worstDayOfWeek]}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.reviewInsight}>
+                <Text style={styles.reviewInsightText}>
+                  💡 You complete more goals on {DAY_NAMES_SHORT[weeklyStats.bestDayOfWeek]}s.
+                  Try reducing your Sunday targets if {DAY_NAMES_SHORT[weeklyStats.worstDayOfWeek]} is your weakest.
+                </Text>
+              </View>
+            </View>
           </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.dot, styles.dotPartial]} />
-            <Text style={styles.legendText}>Partial Progress</Text>
+        )}
+
+        {/* Badges */}
+        {badges.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Milestones</Text>
+            <View style={styles.badgesGrid}>
+              {badges.map((badge) => (
+                <View key={badge.id} style={styles.badgeCard}>
+                  <Text style={styles.badgeEmoji}>{badge.emoji}</Text>
+                  <Text style={styles.badgeName}>{badge.name}</Text>
+                  <Text style={styles.badgeDate}>
+                    {new Date(badge.earnedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </Text>
+                </View>
+              ))}
+            </View>
           </View>
-          <View style={styles.legendItem}>
-            <View style={styles.dot} />
-            <Text style={styles.legendText}>Incomplete</Text>
-          </View>
+        )}
+
+        {/* Legend */}
+        <View style={styles.legendSection}>
+          {[
+            { color: theme.colors.primary, label: 'All goals done — Win day 🟩' },
+            { color: interpolateColor(0.5), label: 'Partial progress' },
+            { color: theme.colors.border, label: 'Incomplete day' },
+          ].map((item, i) => (
+            <View key={i} style={styles.legendItem}>
+              <View style={[styles.dot, { backgroundColor: item.color }]} />
+              <Text style={styles.legendText}>{item.label}</Text>
+            </View>
+          ))}
         </View>
+
+        {isLoading && (
+          <View style={styles.loader}>
+            <ActivityIndicator color={theme.colors.primary} />
+          </View>
+        )}
+        <View style={{ height: 40 }} />
       </ScrollView>
     </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContent: {
-    padding: theme.spacing.m,
-  },
+  scrollContent: { padding: 16 },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    marginTop: theme.spacing.xl,
-    marginBottom: theme.spacing.l,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginTop: 24,
+    marginBottom: 16,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: theme.colors.text,
-  },
-  exportButton: {
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: theme.radii.m,
-  },
-  exportButtonText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  subtitle: {
-    fontSize: 16,
-    color: theme.colors.textMuted,
-    marginBottom: theme.spacing.l,
-  },
-  statsRow: {
-    flexDirection: "row",
-    gap: theme.spacing.m,
-    marginBottom: theme.spacing.xl,
-  },
-  statCard: {
-    flex: 1,
-    alignItems: "center",
-    padding: theme.spacing.m,
-  },
-  statLabel: {
-    color: theme.colors.textMuted,
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  statValue: {
-    color: theme.colors.primary,
-    fontSize: 24,
-    fontWeight: "bold",
-  },
-  gridSection: {
+  title: { fontSize: 28, fontWeight: '800', color: theme.colors.text, letterSpacing: -0.5 },
+  subtitle: { fontSize: 14, color: theme.colors.textMuted, marginTop: 3 },
+  shareBtn: {
     backgroundColor: theme.colors.card,
-    borderRadius: theme.radii.l,
-    padding: theme.spacing.m,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: theme.radii.full,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
-  sectionTitle: {
-    color: theme.colors.text,
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: theme.spacing.m,
+  shareBtnText: { color: theme.colors.text, fontSize: 13, fontWeight: '700' },
+  rangeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 20,
   },
+  rangeBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: theme.radii.m,
+    backgroundColor: theme.colors.card,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+  },
+  rangeBtnActive: {
+    backgroundColor: 'rgba(16,185,129,0.12)',
+    borderColor: theme.colors.primary,
+  },
+  rangeBtnText: { color: theme.colors.textMuted, fontWeight: '700', fontSize: 14 },
+  rangeBtnTextActive: { color: theme.colors.primary },
+  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  shareCard: {
+    backgroundColor: theme.colors.backgroundAlt,
+    borderRadius: theme.radii.xl,
+    padding: 16,
+    marginTop: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  shareCardHeader: { alignItems: 'center', marginBottom: 14 },
+  shareCardTitle: {
+    color: theme.colors.primary,
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: 4,
+  },
+  shareCardSub: { color: theme.colors.textMuted, fontSize: 11, marginTop: 2 },
   grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    justifyContent: "flex-start",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    justifyContent: 'flex-start',
   },
   dot: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 42,
+    height: 42,
+    borderRadius: 10,
     backgroundColor: theme.colors.border,
   },
-  dotGreen: {
-    backgroundColor: theme.colors.primary,
+  dotToday: {
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.25)',
   },
-  dotPartial: {
-    backgroundColor: theme.colors.primaryMuted,
+  shareLegend: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginTop: 14,
+    flexWrap: 'wrap',
   },
-  legend: {
-    marginTop: theme.spacing.xl,
-    gap: theme.spacing.s,
+  legendSection: { marginTop: 16, gap: 8 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  legendText: { color: theme.colors.textMuted, fontSize: 13 },
+  shareWatermark: {
+    marginLeft: 'auto',
+    color: theme.colors.textFaint,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
+  section: { marginTop: 24 },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: theme.colors.text,
+    letterSpacing: -0.3,
+    marginBottom: 12,
   },
-  legendText: {
+  reviewCard: {
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.radii.l,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  reviewSubtitle: {
     color: theme.colors.textMuted,
-    fontSize: 14,
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 12,
   },
+  barChart: {
+    flexDirection: 'row',
+    height: 80,
+    gap: 6,
+    alignItems: 'flex-end',
+    marginBottom: 16,
+  },
+  barColumn: {
+    flex: 1,
+    alignItems: 'center',
+    height: '100%',
+    justifyContent: 'flex-end',
+  },
+  barTrack: {
+    flex: 1,
+    width: '100%',
+    backgroundColor: theme.colors.border,
+    borderRadius: 4,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+  },
+  barFill: { width: '100%', borderRadius: 4 },
+  barLabel: { color: theme.colors.textMuted, fontSize: 10, fontWeight: '600', marginTop: 4 },
+  reviewStats: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    paddingTop: 14,
+    marginBottom: 12,
+  },
+  reviewStat: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  reviewStatRight: {
+    justifyContent: 'flex-end',
+  },
+  reviewStatEmoji: { fontSize: 22 },
+  reviewStatLabel: { color: theme.colors.textMuted, fontSize: 11, fontWeight: '600' },
+  reviewStatValue: { color: theme.colors.text, fontSize: 15, fontWeight: '700' },
+  reviewInsight: {
+    backgroundColor: 'rgba(99,102,241,0.07)',
+    borderRadius: theme.radii.m,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(99,102,241,0.15)',
+  },
+  reviewInsightText: { color: theme.colors.textMuted, fontSize: 13, lineHeight: 18 },
+  badgesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  badgeCard: {
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.radii.l,
+    padding: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.primaryBorder,
+    minWidth: '22%',
+    gap: 4,
+  },
+  badgeEmoji: { fontSize: 28 },
+  badgeName: { color: theme.colors.text, fontSize: 11, fontWeight: '700', textAlign: 'center' },
+  badgeDate: { color: theme.colors.textMuted, fontSize: 10 },
+  loader: { alignItems: 'center', padding: 20 },
 });
