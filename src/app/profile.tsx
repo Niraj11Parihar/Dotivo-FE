@@ -9,15 +9,24 @@ import { LogOut, ChevronLeft, Download, Trash2, Star, Flame, Calendar } from 'lu
 import { userService } from '../config/restClient';
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, isGuest } = useAuthStore();
   const { currentStreak, bestStreak, greenDaysThisMonth, badges, weeklyStats } = useGoalStore();
   const router = useRouter();
   const [exporting, setExporting] = useState(false);
 
   const handleLogout = async () => {
+    if (isGuest) {
+      await logout();
+      router.replace('/auth');
+      return;
+    }
+
     Alert.alert('Logout', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', style: 'destructive', onPress: () => logout() },
+      { text: 'Logout', style: 'destructive', onPress: () => {
+        logout();
+        router.replace('/auth');
+      }},
     ]);
   };
 
@@ -81,10 +90,10 @@ export default function ProfileScreen() {
         {/* Avatar + Name */}
         <View style={styles.profileSection}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initial}</Text>
+            <Text style={styles.avatarText}>{isGuest ? 'G' : initial}</Text>
           </View>
-          <Text style={styles.userName}>{user?.name || 'User'}</Text>
-          <Text style={styles.userEmail}>{user?.email || ''}</Text>
+          <Text style={styles.userName}>{isGuest ? 'Guest User' : (user?.name || 'User')}</Text>
+          {!isGuest && <Text style={styles.userEmail}>{user?.email || ''}</Text>}
         </View>
 
         {/* Stats Grid */}
@@ -141,6 +150,13 @@ export default function ProfileScreen() {
         {/* Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Data</Text>
+          
+          {isGuest && (
+            <View style={styles.guestBanner}>
+              <Text style={styles.guestBannerTitle}>Data is saved locally</Text>
+              <Text style={styles.guestBannerText}>Create an account to securely back up your habits and sync them across devices.</Text>
+            </View>
+          )}
           <Pressable
             style={({ pressed }) => [styles.actionBtn, { opacity: pressed ? 0.8 : 1 }]}
             onPress={handleExportData}
@@ -158,16 +174,20 @@ export default function ProfileScreen() {
             style={({ pressed }) => [styles.logoutBtn, { opacity: pressed ? 0.8 : 1 }]}
             onPress={handleLogout}
           >
-            <LogOut color={theme.colors.error} size={18} />
-            <Text style={styles.logoutText}>Logout</Text>
+            <LogOut color={isGuest ? theme.colors.primary : theme.colors.error} size={18} />
+            <Text style={isGuest ? styles.signInText : styles.logoutText}>
+              {isGuest ? 'Sign In / Create Account' : 'Logout'}
+            </Text>
           </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.deleteBtn, { opacity: pressed ? 0.8 : 1 }]}
-            onPress={handleDeleteAccount}
-          >
-            <Trash2 color={theme.colors.error} size={16} />
-            <Text style={styles.deleteBtnText}>Delete Account</Text>
-          </Pressable>
+          {!isGuest && (
+            <Pressable
+              style={({ pressed }) => [styles.deleteBtn, { opacity: pressed ? 0.8 : 1 }]}
+              onPress={handleDeleteAccount}
+            >
+              <Trash2 color={theme.colors.error} size={16} />
+              <Text style={styles.deleteBtnText}>Delete Account</Text>
+            </Pressable>
+          )}
         </View>
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -321,4 +341,15 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   deleteBtnText: { color: theme.colors.error, fontSize: 13, opacity: 0.7 },
+  guestBanner: {
+    backgroundColor: 'rgba(25, 217, 148, 0.1)',
+    borderRadius: theme.radii.l,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(25, 217, 148, 0.2)',
+  },
+  guestBannerTitle: { color: theme.colors.primary, fontSize: 15, fontWeight: '700', marginBottom: 6 },
+  guestBannerText: { color: theme.colors.textMuted, fontSize: 13, lineHeight: 18 },
+  signInText: { color: theme.colors.primary, fontWeight: '700', fontSize: 15 },
 });

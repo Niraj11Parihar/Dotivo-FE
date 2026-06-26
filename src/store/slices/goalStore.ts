@@ -62,6 +62,23 @@ export interface Badge {
   earnedAt: string;
 }
 
+export type OfflineOperation =
+  | { id: string; type: 'CREATE_GOAL'; localId: string; payload: any; createdAt: string; retryCount: number; }
+  | { id: string; type: 'UPDATE_GOAL'; goalId: string; payload: any; createdAt: string; retryCount: number; }
+  | { id: string; type: 'DELETE_GOAL'; goalId: string; createdAt: string; retryCount: number; }
+  | { id: string; type: 'UPSERT_COMPLETION'; goalId: string; date: string; completedCount: number; source: string; createdAt: string; retryCount: number; };
+
+export interface CustomTheme {
+  id: string;
+  name: string;
+  emoji: string;
+  colors: {
+    primary: string;
+    empty: string;
+    background: string;
+  };
+}
+
 export interface GoalState {
   templates: GoalTemplate[];
   currentPlan: DayPlan | null;
@@ -75,6 +92,10 @@ export interface GoalState {
   weeklyStats: WeeklyStats | null;
   badges: Badge[];
   hasOnboarded: boolean;
+  offlineQueue: OfflineOperation[];
+  isSyncing: boolean;
+  hasHydrated: boolean;
+  customThemes: CustomTheme[];
 
   // Actions
   fetchTemplates: () => Promise<void>;
@@ -91,6 +112,10 @@ export interface GoalState {
   computeWeeklyStats: () => void;
   checkAndAwardBadges: () => Badge[];
   setHasOnboarded: (val: boolean) => void;
+  syncWithBackend: () => Promise<void>;
+  _setHasHydrated: (state: boolean) => void;
+  saveCustomTheme: (theme: CustomTheme) => void;
+  deleteCustomTheme: (id: string) => void;
 }
 
 // ─── Pure helpers ──────────────────────────────────────────────────
@@ -268,8 +293,113 @@ export const useGoalStore = create<GoalState>()(
       weeklyStats: null,
       badges: [],
       hasOnboarded: false,
+      offlineQueue: [],
+      isSyncing: false,
+      hasHydrated: false,
+      customThemes: [],
 
       setHasOnboarded: (val) => set({ hasOnboarded: val }),
+      _setHasHydrated: (state) => set({ hasHydrated: state }),
+
+      saveCustomTheme: (theme) => {
+        set({ customThemes: [...get().customThemes, theme] });
+      },
+
+      deleteCustomTheme: (id) => {
+        set({ customThemes: get().customThemes.filter(t => t.id !== id) });
+      },
+
+      syncWithBackend: async () => {
+        const state = get();
+        if (state.isSyncing) return;
+        if (!state.hasHydrated) return;
+
+        // Need auth token and network (NetInfo would be ideal, but for now we assume online until fetch fails)
+        const token = await AsyncStorage.getItem('access_token');
+        if (!token) return;
+
+        if (state.offlineQueue.length === 0) return;
+
+        set({ isSyncing: true });
+        
+        let localToServerIdMap: Record<string, string> = {};
+        let syncFailed = false;
+
+        const updatedQueue = [...state.offlineQueue];
+
+        while (updatedQueue.length > 0) {
+          const op = updatedQueue[0];
+          try {
+            if (op.type === 'CREATE_GOAL') {
+              const res = await goalService.createTemplate(op.payload);
+              localToServerIdMap[op.localId] = res._id;
+            } 
+            else if (op.type === 'UPDATE_GOAL') {
+              const actualId = localToServerIdMap[op.goalId] || op.goalId;
+              // If it's a local ID and not in map, it must have been deleted or never created on backend. Safe to ignore or retry later.
+              if (!actualId.startsWith('local-')) {
+                await goalService.updateTemplate(actualId, op.payload);
+              }
+            } 
+            else if (op.type === 'DELETE_GOAL') {
+              const actualId = localToServerIdMap[op.goalId] || op.goalId;
+              if (!actualId.startsWith('local-')) {
+                await goalService.deleteTemplate(actualId);
+              }
+            } 
+            else if (op.type === 'UPSERT_COMPLETION') {
+              const actualId = localToServerIdMap[op.goalId] || op.goalId;
+              if (!actualId.startsWith('local-')) {
+                await planService.logProgress({
+                  goalTemplateId: actualId,
+                  date: op.date,
+                  completedCount: op.completedCount,
+                  source: op.source,
+                });
+              }
+            }
+            // Operation succeeded, remove it from queue
+            updatedQueue.shift();
+            // Update queue in state immediately in case of crash
+            set({ offlineQueue: [...updatedQueue] });
+          } catch (e: any) {
+            console.log('[Sync] Operation failed:', e.message);
+            // Increment retry count, stop syncing
+            op.retryCount += 1;
+            set({ offlineQueue: [...updatedQueue] });
+            syncFailed = true;
+            break; 
+          }
+        }
+
+        // Apply ID mappings to local state if we created any goals
+        if (Object.keys(localToServerIdMap).length > 0) {
+          const mapId = (id: string) => localToServerIdMap[id] || id;
+          
+          set((s) => ({
+            templates: s.templates.map(t => ({ ...t, _id: mapId(t._id) })),
+            currentPlan: s.currentPlan ? {
+              ...s.currentPlan,
+              goals: s.currentPlan.goals.map(g => ({ ...g, goalTemplateId: mapId(g.goalTemplateId) }))
+            } : null,
+            offlineQueue: s.offlineQueue.map(op => {
+              if (op.type === 'UPDATE_GOAL' || op.type === 'DELETE_GOAL' || op.type === 'UPSERT_COMPLETION') {
+                return { ...op, goalId: mapId(op.goalId) };
+              }
+              return op;
+            })
+          }));
+        }
+
+        set({ isSyncing: false });
+
+        // Only fetch fresh data if queue is entirely empty so we don't overwrite pending data
+        if (!syncFailed && updatedQueue.length === 0) {
+          await get().fetchTemplates();
+          const today = new Date().toISOString().split('T')[0];
+          await get().fetchDailyPlan(today);
+        }
+      },
 
       setHistoryRange: (range) => {
         set({ historyRange: range });
@@ -383,45 +513,60 @@ export const useGoalStore = create<GoalState>()(
       },
 
       addTemplate: async (data) => {
-        set({ isLoading: true, error: null });
-        try {
-          await goalService.createTemplate(data);
-          await get().fetchTemplates();
-          const today = new Date().toISOString().split('T')[0];
-          await get().fetchDailyPlan(today);
-          set({ isLoading: false });
-          get().checkAndAwardBadges();
-        } catch (error: any) {
-          set({ error: error.message, isLoading: false });
-          throw error;
-        }
+        const localId = `local-${Date.now()}`;
+        const newTemplate = { ...data, _id: localId };
+        
+        set((state) => ({
+          templates: [...state.templates, newTemplate],
+          offlineQueue: [...state.offlineQueue, {
+            id: `op-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            type: 'CREATE_GOAL',
+            localId,
+            payload: data,
+            createdAt: new Date().toISOString(),
+            retryCount: 0
+          }]
+        }));
+
+        const today = new Date().toISOString().split('T')[0];
+        await get().fetchDailyPlan(today);
+        get().checkAndAwardBadges();
+        get().syncWithBackend();
       },
 
       updateTemplate: async (id, data) => {
-        set({ isLoading: true, error: null });
-        try {
-          await goalService.updateTemplate(id, data);
-          await get().fetchTemplates();
-          const today = new Date().toISOString().split('T')[0];
-          await get().fetchDailyPlan(today);
-          set({ isLoading: false });
-        } catch (error: any) {
-          set({ error: error.message, isLoading: false });
-          throw error;
-        }
+        set((state) => ({
+          templates: state.templates.map(t => t._id === id ? { ...t, ...data } : t),
+          offlineQueue: [...state.offlineQueue, {
+            id: `op-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            type: 'UPDATE_GOAL',
+            goalId: id,
+            payload: data,
+            createdAt: new Date().toISOString(),
+            retryCount: 0
+          }]
+        }));
+
+        const today = new Date().toISOString().split('T')[0];
+        await get().fetchDailyPlan(today);
+        get().syncWithBackend();
       },
 
       removeTemplate: async (id) => {
-        set({ isLoading: true, error: null });
-        try {
-          await goalService.deleteTemplate(id);
-          await get().fetchTemplates();
-          const today = new Date().toISOString().split('T')[0];
-          await get().fetchDailyPlan(today);
-          set({ isLoading: false });
-        } catch (error: any) {
-          set({ error: error.message, isLoading: false });
-        }
+        set((state) => ({
+          templates: state.templates.filter(t => t._id !== id),
+          offlineQueue: [...state.offlineQueue, {
+            id: `op-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            type: 'DELETE_GOAL',
+            goalId: id,
+            createdAt: new Date().toISOString(),
+            retryCount: 0
+          }]
+        }));
+
+        const today = new Date().toISOString().split('T')[0];
+        await get().fetchDailyPlan(today);
+        get().syncWithBackend();
       },
 
       skipGoal: (goalId: string, date: string) => {
@@ -500,37 +645,46 @@ export const useGoalStore = create<GoalState>()(
 
         syncWallpaperData(completionScore, newHistory);
 
-        try {
-          await planService.logProgress({
-            goalTemplateId: goalId,
-            date,
-            completedCount: count,
-            source: 'app',
-          });
+        // Offline queue UPSERT logic for completions
+        set((state) => {
+          const newQueue = [...state.offlineQueue];
+          const existingIdx = newQueue.findIndex(
+            (op) => op.type === 'UPSERT_COMPLETION' && op.goalId === goalId && op.date === date
+          );
 
-          const freshHistory: HistoryItem[] = await planService.getHistory(get().historyRange);
-          const mergedHistory = freshHistory.map((h: HistoryItem) => {
-            if (h.date === date) {
-              return todayHistoryItem;
-            }
-            return h;
-          });
-
-          if (!mergedHistory.find((h: HistoryItem) => h.date === date)) {
-            mergedHistory.unshift(todayHistoryItem);
+          if (existingIdx >= 0) {
+            // Update existing upsert
+            newQueue[existingIdx] = {
+              ...newQueue[existingIdx],
+              completedCount: count, // use latest count
+            } as Extract<OfflineOperation, { type: 'UPSERT_COMPLETION' }>;
+          } else {
+            newQueue.push({
+              id: `op-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+              type: 'UPSERT_COMPLETION',
+              goalId,
+              date,
+              completedCount: count,
+              source: 'app',
+              createdAt: new Date().toISOString(),
+              retryCount: 0,
+            });
           }
 
-          set({ history: mergedHistory });
-          get().computeStats();
-          get().computeWeeklyStats();
-        } catch (error: any) {
-          console.log('Background sync failed, keeping optimistic state');
-        }
+          return { offlineQueue: newQueue };
+        });
+
+        get().syncWithBackend();
       },
     }),
     {
       name: 'dotivo-goals-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state._setHasHydrated(true);
+        }
+      },
       partialize: (state) => ({
         templates: state.templates,
         currentPlan: state.currentPlan,
@@ -542,6 +696,8 @@ export const useGoalStore = create<GoalState>()(
         weeklyStats: state.weeklyStats,
         badges: state.badges,
         hasOnboarded: state.hasOnboarded,
+        offlineQueue: state.offlineQueue,
+        customThemes: state.customThemes,
       }),
     }
   )

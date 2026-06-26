@@ -16,11 +16,13 @@ interface AuthState {
   error: string | null;
   isAuthenticated: boolean;
   isInitialized: boolean;
+  isGuest: boolean;
 
   // Actions
   login: (credentials: any) => Promise<void>;
   register: (data: any) => Promise<void>;
   logout: () => Promise<void>;
+  continueAsGuest: () => Promise<void>;
   checkToken: () => Promise<void>;
   fetchProfile: () => Promise<void>;
   deleteAccount: () => Promise<void>;
@@ -33,12 +35,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   error: null,
   isAuthenticated: false,
   isInitialized: false,
+  isGuest: false,
 
   login: async (credentials) => {
     set({ isLoading: true, error: null });
     try {
       const data = await authService.login(credentials);
-      set({ user: data.user, token: data.access_token, isAuthenticated: true, isLoading: false });
+      await AsyncStorage.removeItem('is_guest');
+      set({ user: data.user, token: data.access_token, isAuthenticated: true, isGuest: false, isLoading: false });
     } catch (error: any) {
       set({ error: error.response?.data?.message || 'Login failed', isLoading: false });
       throw error;
@@ -49,7 +53,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await authService.register(data);
-      set({ user: response.user, token: response.access_token, isAuthenticated: true, isLoading: false });
+      await AsyncStorage.removeItem('is_guest');
+      set({ user: response.user, token: response.access_token, isAuthenticated: true, isGuest: false, isLoading: false });
     } catch (error: any) {
       set({ error: error.response?.data?.message || 'Registration failed', isLoading: false });
       throw error;
@@ -57,25 +62,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    await authService.logout();
-    set({ user: null, token: null, isAuthenticated: false });
+    try { await authService.logout(); } catch (e) {}
+    await AsyncStorage.removeItem('is_guest');
+    set({ user: null, token: null, isAuthenticated: false, isGuest: false });
   },
 
   deleteAccount: async () => {
-    await authService.logout();
-    set({ user: null, token: null, isAuthenticated: false });
+    try { await authService.logout(); } catch (e) {}
+    await AsyncStorage.removeItem('is_guest');
+    set({ user: null, token: null, isAuthenticated: false, isGuest: false });
+  },
+
+  continueAsGuest: async () => {
+    await AsyncStorage.setItem('is_guest', 'true');
+    set({ isGuest: true });
   },
 
   checkToken: async () => {
     try {
       const token = await AsyncStorage.getItem('access_token');
+      const isGuestStr = await AsyncStorage.getItem('is_guest');
+      const isGuest = isGuestStr === 'true';
+
       if (token) {
         // Set token immediately so axios interceptor has it before any fetches
-        set({ token, isAuthenticated: true, isInitialized: true });
+        set({ token, isAuthenticated: true, isGuest: false, isInitialized: true });
         // Validate token by fetching profile in background; only log out on explicit 401
         await get().fetchProfile();
       } else {
-        set({ isInitialized: true });
+        set({ isInitialized: true, isGuest });
       }
     } catch (e) {
       set({ isInitialized: true });

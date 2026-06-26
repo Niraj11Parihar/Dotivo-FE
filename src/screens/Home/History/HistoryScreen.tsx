@@ -22,11 +22,12 @@ function interpolateColor(score: number): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function StatCard({ label, value, sub, icon }: { label: string; value: string; sub?: string; icon: string }) {
   return (
     <View style={statStyles.card}>
-      <Text style={statStyles.label}>{label}</Text>
+      <Text style={statStyles.icon}>{icon}</Text>
       <Text style={statStyles.value}>{value}</Text>
+      <Text style={statStyles.label}>{label}</Text>
       {sub ? <Text style={statStyles.sub}>{sub}</Text> : null}
     </View>
   );
@@ -35,16 +36,21 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
 const statStyles = StyleSheet.create({
   card: {
     flex: 1,
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.radii.l,
-    padding: 14,
+    backgroundColor: theme.colors.cardElevated,
+    borderRadius: 20,
+    padding: 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
-  label: { color: theme.colors.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 6, textAlign: 'center' },
-  value: { color: theme.colors.primary, fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
-  sub: { color: theme.colors.textMuted, fontSize: 10, marginTop: 3 },
+  icon: { fontSize: 24, marginBottom: 8 },
+  label: { color: theme.colors.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginTop: 4, textAlign: 'center' },
+  value: { color: theme.colors.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
+  sub: { color: theme.colors.textFaint, fontSize: 10, marginTop: 4 },
 });
 
 export default function HistoryScreen() {
@@ -113,25 +119,37 @@ export default function HistoryScreen() {
           ))}
         </View>
 
+        {/* Empty State Message */}
+        {greenDays === 0 && (
+          <View style={styles.emptyJourneyCard}>
+            <Text style={styles.emptyJourneyTitle}>Your journey starts today.</Text>
+            <Text style={styles.emptyJourneySub}>Complete 1 goal to light up your first dot in the constellation below.</Text>
+          </View>
+        )}
+
         {/* Stats Row */}
         <View style={styles.statsRow}>
           <StatCard
+            icon="🟢"
             label="GREEN DAYS"
             value={String(greenDays)}
             sub={`of ${historyRange} days`}
           />
           <StatCard
+            icon="🔥"
             label="STREAK"
-            value={currentStreak > 0 ? `🔥 ${currentStreak}d` : '—'}
+            value={currentStreak > 0 ? `${currentStreak}d` : '0d'}
             sub="current"
           />
         </View>
         <View style={styles.statsRow}>
           <StatCard
+            icon="🏆"
             label="BEST STREAK"
-            value={bestStreak > 0 ? `${bestStreak}d` : '—'}
+            value={bestStreak > 0 ? `${bestStreak}d` : '0d'}
           />
           <StatCard
+            icon="📅"
             label="THIS MONTH"
             value={String(greenDaysThisMonth)}
             sub="green days"
@@ -142,7 +160,7 @@ export default function HistoryScreen() {
         <View ref={shareRef} collapsable={false} style={styles.shareCard}>
           <View style={styles.shareCardHeader}>
             <Text style={styles.shareCardTitle}>DOTIVO</Text>
-            <Text style={styles.shareCardSub}>{historyRange}-Day Momentum</Text>
+            <Text style={styles.shareCardSub}>My {historyRange}-Day Momentum</Text>
           </View>
           <View style={styles.grid}>
             {Array.from({ length: historyRange }).map((_, i) => {
@@ -158,6 +176,7 @@ export default function HistoryScreen() {
                   style={[
                     styles.dot,
                     { backgroundColor: dotColor },
+                    score > 0 && { shadowColor: dotColor, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.6, shadowRadius: 8, elevation: 4 },
                     isToday && styles.dotToday,
                   ]}
                 />
@@ -334,37 +353,37 @@ const styles = StyleSheet.create({
   rangeBtnTextActive: { color: theme.colors.primary },
   statsRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
   shareCard: {
-    backgroundColor: theme.colors.backgroundAlt,
-    borderRadius: theme.radii.xl,
-    padding: 16,
-    marginTop: 16,
+    backgroundColor: '#03050B',
+    borderRadius: 24,
+    padding: 24,
+    marginTop: 20,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
-  shareCardHeader: { alignItems: 'center', marginBottom: 14 },
+  shareCardHeader: { alignItems: 'center', marginBottom: 20 },
   shareCardTitle: {
-    color: theme.colors.primary,
-    fontSize: 16,
+    color: '#fff',
+    fontSize: 20,
     fontWeight: '900',
-    letterSpacing: 4,
+    letterSpacing: 6,
   },
-  shareCardSub: { color: theme.colors.textMuted, fontSize: 11, marginTop: 2 },
+  shareCardSub: { color: theme.colors.textMuted, fontSize: 13, marginTop: 4, letterSpacing: 1 },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    justifyContent: 'flex-start',
+    gap: 8,
+    justifyContent: 'center',
   },
   dot: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
-    backgroundColor: theme.colors.border,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: theme.colors.borderLight,
   },
   dotToday: {
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor: 'rgba(255,255,255,0.4)',
   },
   shareLegend: {
     flexDirection: 'row',
@@ -469,4 +488,25 @@ const styles = StyleSheet.create({
   badgeName: { color: theme.colors.text, fontSize: 11, fontWeight: '700', textAlign: 'center' },
   badgeDate: { color: theme.colors.textMuted, fontSize: 10 },
   loader: { alignItems: 'center', padding: 20 },
+  emptyJourneyCard: {
+    backgroundColor: 'rgba(25, 217, 148, 0.05)',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(25, 217, 148, 0.2)',
+    alignItems: 'center',
+  },
+  emptyJourneyTitle: {
+    color: theme.colors.primaryLight,
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 6,
+  },
+  emptyJourneySub: {
+    color: theme.colors.textMuted,
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 20,
+  }
 });

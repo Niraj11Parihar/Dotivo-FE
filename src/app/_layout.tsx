@@ -1,8 +1,10 @@
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import "react-native-reanimated";
+import { AppState, Platform } from "react-native";
+import NetInfo from "@react-native-community/netinfo";
 import { theme } from "../config/constants/theme";
 import { useAuthStore } from "../store/slices/authStore";
 import { useGoalStore } from "../store/slices/goalStore";
@@ -24,16 +26,45 @@ const CustomDarkTheme = {
 };
 
 export default function RootLayout() {
-  const { isAuthenticated, isInitialized, checkToken } = useAuthStore();
-  const { hasOnboarded } = useGoalStore();
+  const { isAuthenticated, isInitialized, isGuest, checkToken } = useAuthStore();
+  const { hasOnboarded, hasHydrated, syncWithBackend } = useGoalStore();
   const segments = useSegments();
   const router = useRouter();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const appState = useRef(AppState.currentState);
 
   useEffect(() => {
     checkToken();
   }, []);
+
+  // --- Sync Engine Triggers ---
+  useEffect(() => {
+    if (!hasHydrated || !isAuthenticated) return;
+
+    // Trigger sync on initial mount/auth
+    syncWithBackend();
+
+    // Trigger sync when app comes to foreground
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        syncWithBackend();
+      }
+      appState.current = nextAppState;
+    });
+
+    // Trigger sync when network is restored
+    const netInfoSub = NetInfo.addEventListener(state => {
+      if (state.isConnected && state.isInternetReachable !== false) {
+        syncWithBackend();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+      netInfoSub();
+    };
+  }, [hasHydrated, isAuthenticated]);
 
   // Check onboarding flag after auth initialized
   useEffect(() => {
@@ -55,13 +86,14 @@ export default function RootLayout() {
     if (showOnboarding) return; // Don't redirect during onboarding
 
     const inAuthGroup = (segments as any)[0] === "auth";
+    const hasAccess = isAuthenticated || isGuest;
 
-    if (!isAuthenticated && !inAuthGroup) {
+    if (!hasAccess && !inAuthGroup) {
       router.replace("/auth" as any);
-    } else if (isAuthenticated && inAuthGroup) {
+    } else if (hasAccess && inAuthGroup) {
       router.replace("/(tabs)" as any);
     }
-  }, [isAuthenticated, isInitialized, segments, showOnboarding, onboardingChecked]);
+  }, [isAuthenticated, isGuest, isInitialized, segments, showOnboarding, onboardingChecked]);
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
@@ -75,6 +107,11 @@ export default function RootLayout() {
         <StatusBar style="light" />
       </GestureHandlerRootView>
     );
+  }
+
+  // Wait until auth state and onboarding state are checked
+  if (!isInitialized || !onboardingChecked) {
+    return null;
   }
 
   return (

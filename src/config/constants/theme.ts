@@ -1,34 +1,32 @@
 export const theme = {
   colors: {
-    background: '#0A0F1E',      // Deep navy-black
-    backgroundAlt: '#0F172A',   // Slightly lighter for cards behind cards
-    card: '#141E30',            // Rich dark card
-    cardElevated: '#1A2540',    // Slightly lighter card for modals
-    text: '#F0F4FF',            // Warm white
-    textMuted: '#7E8BA8',       // Muted slate
-    textFaint: '#3D4E6A',       // Very faint, for dividers
-    primary: '#10B981',         // Emerald green (main success)
-    primaryLight: '#34D399',    // Lighter green for hover/glow
-    primaryMuted: '#052e16',    // Very dark green (backgrounds)
-    primaryBorder: '#065f46',   // Green border
-    accent: '#6366F1',          // Indigo accent for secondary actions
-    accentLight: '#818CF8',     // Light indigo
-    warning: '#F59E0B',         // Amber for partial
-    warningMuted: 'rgba(245,158,11,0.1)',
-    error: '#EF4444',
-    errorMuted: 'rgba(239,68,68,0.1)',
-    border: '#1E2D45',          // Subtle dark border
-    borderLight: '#253350',     // Slightly more visible border
-    separator: '#0E1929',       // For section dividers
-    overlay: 'rgba(0,0,0,0.6)',
-    // Gradient stops (used as references)
-    gradientStart: '#0A0F1E',
-    gradientEnd: '#0F1A2E',
+    background: '#050816',      // Deep futuristic background
+    backgroundAlt: '#080C1E',   // Slightly lighter for contrast
+    card: '#101827',            // Surface card
+    cardElevated: '#162033',    // Elevated card
+    text: '#F8FAFC',            // Text white
+    textMuted: '#94A3B8',       // Muted text
+    textFaint: '#475569',       // Faint text
+    primary: '#19D994',         // Primary emerald
+    primaryLight: '#35F2B2',    // Glow emerald
+    primaryMuted: 'rgba(25, 217, 148, 0.1)',
+    primaryBorder: 'rgba(25, 217, 148, 0.3)',
+    accent: '#8B5CF6',          // Accent purple
+    accentLight: '#A78BFA',
+    secondary: '#38BDF8',       // Secondary cyan
+    warning: '#FACC15',         // Reward gold
+    warningMuted: 'rgba(250, 204, 21, 0.1)',
+    error: '#F87171',           // Danger
+    errorMuted: 'rgba(248, 113, 113, 0.1)',
+    border: '#263653',          // Border
+    borderLight: '#334155',     
+    separator: '#1E293B',       
+    overlay: 'rgba(0,0,0,0.65)',
     // Status colors
-    green: '#10B981',
-    partial: '#F59E0B',
-    grey: '#1E2D45',
-    skipped: '#3D4E6A',
+    green: '#19D994',
+    partial: '#FACC15',
+    grey: '#263653',
+    skipped: '#475569',
   },
   spacing: {
     xs: 4,
@@ -40,8 +38,9 @@ export const theme = {
     xxxl: 64,
   },
   typography: {
-    h1: { fontSize: 32, fontWeight: 'bold' as const, letterSpacing: -0.5 },
-    h2: { fontSize: 24, fontWeight: 'bold' as const, letterSpacing: -0.3 },
+    hero: { fontSize: 42, fontWeight: '800' as const, letterSpacing: -1 },
+    h1: { fontSize: 36, fontWeight: '800' as const, letterSpacing: -0.5 },
+    h2: { fontSize: 24, fontWeight: '700' as const, letterSpacing: -0.3 },
     h3: { fontSize: 20, fontWeight: '700' as const, letterSpacing: -0.2 },
     body: { fontSize: 16, fontWeight: '400' as const, lineHeight: 24 },
     bodyMedium: { fontSize: 16, fontWeight: '500' as const },

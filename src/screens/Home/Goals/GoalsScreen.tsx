@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { Plus, Pencil, Trash2, Target, Repeat } from 'lucide-react-native';
+import { Plus, Target, Repeat, MoreVertical } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -26,6 +26,19 @@ function getFrequencyLabel(template: GoalTemplate): string {
   return 'Daily';
 }
 
+function getGoalEmoji(title: string) {
+  const lower = title.toLowerCase();
+  if (lower.includes('gym') || lower.includes('workout') || lower.includes('exercise')) return '🏋️';
+  if (lower.includes('water') || lower.includes('drink')) return '💧';
+  if (lower.includes('read') || lower.includes('book')) return '📚';
+  if (lower.includes('meditat') || lower.includes('mind')) return '🧘';
+  if (lower.includes('code') || lower.includes('dev') || lower.includes('program')) return '💻';
+  if (lower.includes('sleep') || lower.includes('bed')) return '🌙';
+  if (lower.includes('walk') || lower.includes('step') || lower.includes('run')) return '🏃';
+  if (lower.includes('study') || lower.includes('learn')) return '📖';
+  return '🎯';
+}
+
 export default function GoalsScreen() {
   const { templates, fetchTemplates, isLoading, removeTemplate } = useGoalStore();
   const router = useRouter();
@@ -46,44 +59,47 @@ export default function GoalsScreen() {
     ]);
   };
 
+  const handleMoreOptions = (item: GoalTemplate) => {
+    Alert.alert('Manage Goal', item.title, [
+      { text: 'Edit', onPress: () => setEditingTemplate(item) },
+      { text: 'Delete', style: 'destructive', onPress: () => handleDelete(item) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
   const minimumGoals = templates.filter(t => t.isDailyMinimum);
   const bonusGoals = templates.filter(t => !t.isDailyMinimum);
 
   const renderGoalCard = ({ item }: { item: GoalTemplate }) => (
-    <View style={styles.goalCard}>
+    <View style={[styles.goalCard, { borderColor: item.color + '40', backgroundColor: theme.colors.cardElevated }]}>
       <View style={[styles.accentBar, { backgroundColor: item.color }]} />
       <View style={styles.goalInfo}>
-        <Text style={styles.goalTitle} numberOfLines={1}>{item.title}</Text>
+        <View style={styles.goalTitleRow}>
+          <Text style={styles.goalEmoji}>{getGoalEmoji(item.title)}</Text>
+          <Text style={styles.goalTitle} numberOfLines={1}>{item.title}</Text>
+        </View>
         <View style={styles.goalMeta}>
           <View style={styles.metaPill}>
-            <Target size={10} color={theme.colors.textMuted} />
             <Text style={styles.metaText}>
               {item.targetCount > 1 ? `${item.targetCount} units` : '1 session'}
             </Text>
           </View>
           <View style={styles.metaPill}>
-            <Repeat size={10} color={theme.colors.textMuted} />
             <Text style={styles.metaText}>{getFrequencyLabel(item)}</Text>
           </View>
-          {item.category ? (
+          {item.category && (
             <View style={styles.metaPill}>
               <Text style={styles.metaText}>{item.category}</Text>
             </View>
-          ) : null}
+          )}
         </View>
       </View>
       <View style={styles.goalActions}>
         <Pressable
           style={({ pressed }) => [styles.actionBtn, { opacity: pressed ? 0.7 : 1 }]}
-          onPress={() => setEditingTemplate(item)}
+          onPress={() => handleMoreOptions(item)}
         >
-          <Pencil color={theme.colors.textMuted} size={17} />
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [styles.actionBtn, { opacity: pressed ? 0.7 : 1 }]}
-          onPress={() => handleDelete(item)}
-        >
-          <Trash2 color={theme.colors.error} size={17} />
+          <MoreVertical color={theme.colors.textMuted} size={20} />
         </Pressable>
       </View>
     </View>
@@ -238,38 +254,41 @@ const styles = StyleSheet.create({
   goalCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.radii.l,
-    marginBottom: 8,
+    backgroundColor: theme.colors.cardElevated,
+    borderRadius: 16,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: theme.colors.border,
     overflow: 'hidden',
   },
-  accentBar: { width: 4, alignSelf: 'stretch' },
-  goalInfo: { flex: 1, paddingVertical: 14, paddingHorizontal: 12 },
+  accentBar: { width: 5, alignSelf: 'stretch' },
+  goalInfo: { flex: 1, paddingVertical: 14, paddingHorizontal: 16 },
+  goalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  goalEmoji: { fontSize: 18 },
   goalTitle: {
     color: theme.colors.text,
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
-    marginBottom: 6,
+    flex: 1,
   },
   goalMeta: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   metaPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: theme.colors.cardElevated,
-    borderRadius: theme.radii.full,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 8,
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
-  metaText: { color: theme.colors.textMuted, fontSize: 11, fontWeight: '600' },
-  goalActions: { flexDirection: 'row', paddingRight: 8, gap: 2 },
+  metaText: { color: theme.colors.textMuted, fontSize: 12, fontWeight: '600' },
+  goalActions: { paddingRight: 8, justifyContent: 'center' },
   actionBtn: {
-    padding: 10,
-    borderRadius: theme.radii.s,
+    padding: 12,
+    borderRadius: 20,
   },
   emptyState: {
     flex: 1,

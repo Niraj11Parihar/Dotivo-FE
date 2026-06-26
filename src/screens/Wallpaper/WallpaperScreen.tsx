@@ -14,9 +14,11 @@ import {
   Switch,
   Image,
 } from 'react-native';
-import { TriangleColorPicker } from 'react-native-color-picker';
+import { runOnJS } from 'react-native-reanimated';
+import ColorPicker, { Panel1, HueSlider, Preview } from 'reanimated-color-picker';
 import { ScreenWrapper } from '../../components/common/ScreenWrapper';
 import { theme } from '../../config/constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGoalStore } from '../../store/slices/goalStore';
 import {
   Download, Smartphone, Palette, Image as ImageIcon,
@@ -120,9 +122,7 @@ function ColorRow({
       <Pressable
         style={[colorRowStyles.swatch, { backgroundColor: value }]}
         onPress={onPress}
-      >
-        <Text style={colorRowStyles.swatchHex}>{value.toUpperCase()}</Text>
-      </Pressable>
+      />
     </View>
   );
 }
@@ -138,27 +138,17 @@ const colorRowStyles = StyleSheet.create({
   },
   label: { color: theme.colors.textMuted, fontSize: 14 },
   swatch: {
-    width: 120,
-    height: 36,
-    borderRadius: theme.radii.s,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  swatchHex: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#fff',
-    textShadowColor: '#000',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-    letterSpacing: 0.5,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.15)',
   },
 });
 
 export default function WallpaperScreen() {
-  const { history, currentPlan } = useGoalStore();
+  const insets = useSafeAreaInsets();
+  const { history, currentPlan, customThemes, saveCustomTheme } = useGoalStore();
   const viewShotRef = useRef<View>(null);
 
   // ── Config State ──────────────────────────────────────────────────
@@ -166,9 +156,12 @@ export default function WallpaperScreen() {
   const [config, setConfig] = useState<WallpaperConfig>(DEFAULT_WALLPAPER_CONFIG);
   const [bgImageUri, setBgImageUri] = useState<string | null>(null);
 
-  // Color Picker
+  // Color Picker & Custom Theme
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
   const [colorTarget, setColorTarget] = useState<'primary' | 'empty' | 'bg' | 'titleColor' | 'subtitleColor' | null>(null);
+  const [showSaveThemeModal, setShowSaveThemeModal] = useState(false);
+  const [newThemeName, setNewThemeName] = useState('');
+  const [newThemeEmoji, setNewThemeEmoji] = useState('✨');
 
   // Load persisted config on mount
   useEffect(() => {
@@ -190,7 +183,7 @@ export default function WallpaperScreen() {
     syncTimeout.current = setTimeout(() => {
       const todayScore = currentPlan?.goals
         ? currentPlan.goals.filter(g => g.status === 'green').length /
-          Math.max(currentPlan.goals.length, 1)
+        Math.max(currentPlan.goals.length, 1)
         : 0;
       syncWallpaperData(todayScore, history, selectedThemeId, cfg);
     }, 600);
@@ -232,12 +225,32 @@ export default function WallpaperScreen() {
   };
 
   const handleColorPicked = (color: string) => {
+    setSelectedThemeId('custom');
     if (colorTarget === 'primary') updateColors({ primary: color });
     else if (colorTarget === 'empty') updateColors({ empty: color });
     else if (colorTarget === 'bg') updateColors({ background: color });
     else if (colorTarget === 'titleColor') updateText({ titleColor: color });
     else if (colorTarget === 'subtitleColor') updateText({ subtitleColor: color });
     setColorPickerVisible(false);
+  };
+
+  const handleSaveCustomTheme = () => {
+    if (!newThemeName.trim() || !newThemeEmoji.trim()) return;
+    const newId = `custom_${Date.now()}`;
+    saveCustomTheme({
+      id: newId,
+      name: newThemeName.trim(),
+      emoji: newThemeEmoji.trim(),
+      colors: {
+        primary: config.colors.primary,
+        empty: config.colors.empty,
+        background: config.colors.background,
+      }
+    });
+    setSelectedThemeId(newId);
+    setShowSaveThemeModal(false);
+    setNewThemeName('');
+    setNewThemeEmoji('✨');
   };
 
   // ── Background Image ─────────────────────────────────────────────
@@ -258,7 +271,7 @@ export default function WallpaperScreen() {
           const newPath = (FileSystem.documentDirectory as string) + filename;
           await FileSystem.copyAsync({ from: uri, to: newPath });
           finalUri = newPath;
-        } catch (e) {}
+        } catch (e) { }
       }
       updateConfig({ backgroundImage: { enabled: true, uri: finalUri } });
     }
@@ -329,7 +342,7 @@ export default function WallpaperScreen() {
     if (i === 0) {
       const score = currentPlan?.goals
         ? currentPlan.goals.filter(g => g.status === 'green').length /
-          Math.max(currentPlan.goals.length, 1)
+        Math.max(currentPlan.goals.length, 1)
         : 0;
       return { completionScore: score };
     }
@@ -353,7 +366,7 @@ export default function WallpaperScreen() {
           style={styles.wallpaperBg}
           imageStyle={{ borderRadius: 28, opacity: 0.75 }}
         >
-          <View style={[styles.wallpaperBg, { backgroundColor: 'rgba(0,0,0,0.25)' }]}>
+          <View style={[styles.wallpaperBg, { backgroundColor: 'rgba(0,0,0,0.1)' }]}>
             <WallpaperContentInner
               config={config}
               momentumDots={momentumDots}
@@ -419,33 +432,50 @@ export default function WallpaperScreen() {
         {/* Theme Presets */}
         <Section icon={<Palette color={theme.colors.primary} size={18} />} title="Theme Presets">
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
-            {WALLPAPER_THEMES.map((t) => {
+            {[...WALLPAPER_THEMES, ...customThemes].map((t) => {
               const isSelected = selectedThemeId === t.id;
+              const bg = (t as any).background || (t as any).colors?.background;
+              const dotF = (t as any).dotFull || (t as any).colors?.primary;
+              const dotE = (t as any).dotEmpty || (t as any).colors?.empty;
+              
               return (
                 <Pressable
                   key={t.id}
                   style={[styles.themeCard, isSelected && styles.themeCardSelected]}
-                  onPress={() => handleSelectTheme(t)}
+                  onPress={() => {
+                    setSelectedThemeId(t.id);
+                    const next: WallpaperConfig = {
+                      ...config,
+                      colors: { primary: dotF, empty: dotE, background: bg },
+                      text: { 
+                        ...config.text, 
+                        titleColor: (t as any).titleColor || config.text.titleColor, 
+                        subtitleColor: (t as any).subtitleColor || config.text.subtitleColor 
+                      },
+                    };
+                    setConfig(next);
+                    doSync(next);
+                  }}
                 >
-                  <View style={[styles.themeCardBg, { backgroundColor: t.background }]}>
+                  <View style={[styles.themeCardBg, { backgroundColor: bg }]}>
                     <View style={styles.themeCardDots}>
                       {[1, 1, 0, 1, 0, 1, 1, 0, 1].map((filled, i) => (
                         <View
                           key={i}
                           style={[
                             styles.themeCardDot,
-                            { backgroundColor: filled ? t.dotFull : t.dotEmpty },
+                            { backgroundColor: filled ? dotF : dotE },
                           ]}
                         />
                       ))}
                     </View>
                     {isSelected && (
                       <View style={styles.themeCardCheck}>
-                        <Check color="#fff" size={10} />
+                        <Check color="#fff" size={12} strokeWidth={3} />
                       </View>
                     )}
                   </View>
-                  <Text style={[styles.themeCardEmoji]}>{t.emoji}</Text>
+                  <Text style={[styles.themeCardEmoji, { fontSize: 24, marginTop: 4 }]}>{t.emoji}</Text>
                   <Text style={[styles.themeCardName, isSelected && { color: theme.colors.primaryLight }]}>
                     {t.name}
                   </Text>
@@ -453,6 +483,16 @@ export default function WallpaperScreen() {
               );
             })}
           </ScrollView>
+          
+          {selectedThemeId === 'custom' && (
+            <Pressable 
+              style={[styles.primaryAction, { marginTop: 16, backgroundColor: 'rgba(16, 185, 129, 0.15)' }]} 
+              onPress={() => setShowSaveThemeModal(true)}
+            >
+              <Palette color={theme.colors.primaryLight} size={18} />
+              <Text style={[styles.primaryActionText, { color: theme.colors.primaryLight }]}>Save as New Theme Preset</Text>
+            </Pressable>
+          )}
         </Section>
 
         {/* Colors */}
@@ -466,9 +506,7 @@ export default function WallpaperScreen() {
             <Pressable
               style={[colorRowStyles.swatch, { backgroundColor: config.text.subtitleColor }]}
               onPress={() => openPicker('subtitleColor')}
-            >
-              <Text style={colorRowStyles.swatchHex}>{config.text.subtitleColor.toUpperCase()}</Text>
-            </Pressable>
+            />
           </View>
         </Section>
 
@@ -534,8 +572,8 @@ export default function WallpaperScreen() {
           </View>
         </Section>
 
-        {/* Grid Layout */}
-        <Section icon={<Grid color={theme.colors.primary} size={18} />} title="Grid Layout">
+        {/* Grid Layout (Advanced Customization) */}
+        <Section icon={<Grid color={theme.colors.primary} size={18} />} title="Advanced Customization">
           {/* Columns */}
           <Text style={[styles.inputLabel, { marginTop: 12 }]}>Columns</Text>
           <View style={styles.chipRow}>
@@ -678,16 +716,80 @@ export default function WallpaperScreen() {
       <Modal visible={colorPickerVisible} animationType="fade" transparent>
         <View style={styles.pickerOverlay}>
           <View style={styles.pickerContainer}>
-            <Text style={styles.pickerTitle}>Pick a color</Text>
-            <TriangleColorPicker
-              onColorSelected={handleColorPicked}
-              style={{ flex: 1 }}
-              hideSliders={false}
-            />
+            <Text style={styles.pickerTitle}>Select a color</Text>
+
+            {colorPickerVisible && (
+              <ColorPicker
+                style={{ width: '100%', gap: 16, flex: 1 }}
+                value={
+                  colorTarget === 'primary' ? config.colors.primary :
+                    colorTarget === 'empty' ? config.colors.empty :
+                      colorTarget === 'bg' ? config.colors.background :
+                        colorTarget === 'titleColor' ? config.text.titleColor :
+                          colorTarget === 'subtitleColor' ? config.text.subtitleColor : '#ffffff'
+                }
+                onComplete={(color) => {
+                  'worklet';
+                  runOnJS(handleColorPicked)(color.hex);
+                }}
+              >
+                <Preview style={{ height: 40, borderRadius: 8, marginBottom: 8 }} />
+                <Panel1 style={{ flex: 1, borderRadius: 8, marginBottom: 8 }} />
+                <HueSlider style={{ height: 32, borderRadius: 16 }} />
+              </ColorPicker>
+            )}
+
             <Pressable style={styles.pickerCloseBtn} onPress={() => setColorPickerVisible(false)}>
-              <X color="#fff" size={18} />
-              <Text style={styles.pickerCloseBtnText}>Cancel</Text>
+              <X color={theme.colors.textMuted} size={18} />
+              <Text style={styles.pickerCloseBtnText}>Close</Text>
             </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Save Theme Modal */}
+      <Modal visible={showSaveThemeModal} animationType="fade" transparent>
+        <View style={styles.pickerOverlay}>
+          <View style={[styles.pickerContainer, { gap: 16 }]}>
+            <Text style={styles.pickerTitle}>Save Theme Preset</Text>
+            
+            <View>
+              <Text style={[styles.inputLabel, { marginBottom: 8 }]}>Emoji</Text>
+              <TextInput
+                style={styles.textInput}
+                value={newThemeEmoji}
+                onChangeText={setNewThemeEmoji}
+                maxLength={2}
+              />
+            </View>
+
+            <View>
+              <Text style={[styles.inputLabel, { marginBottom: 8 }]}>Theme Name</Text>
+              <TextInput
+                style={styles.textInput}
+                value={newThemeName}
+                onChangeText={setNewThemeName}
+                placeholder="e.g. My Custom Vibe"
+                placeholderTextColor={theme.colors.textMuted}
+                maxLength={20}
+              />
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+              <Pressable 
+                style={[styles.primaryAction, { flex: 1, backgroundColor: theme.colors.card }]} 
+                onPress={() => setShowSaveThemeModal(false)}
+              >
+                <Text style={[styles.primaryActionText, { color: theme.colors.text }]}>Cancel</Text>
+              </Pressable>
+              <Pressable 
+                style={[styles.primaryAction, { flex: 1, opacity: newThemeName.trim() ? 1 : 0.5 }]} 
+                onPress={handleSaveCustomTheme}
+                disabled={!newThemeName.trim()}
+              >
+                <Text style={styles.primaryActionText}>Save Theme</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>
@@ -737,6 +839,7 @@ function WallpaperContentInner({
                     backgroundColor: score > 0 ? config.colors.primary : config.colors.empty,
                     opacity: score > 0 ? opacity : 0.4,
                   },
+                  config.layout.dotShape === 'diamond' && { transform: [{ rotate: '45deg' }] }
                 ]}
               />
             );
@@ -1047,7 +1150,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 14,
+    marginTop: 20,
     paddingVertical: 12,
     backgroundColor: theme.colors.card,
     borderRadius: theme.radii.m,

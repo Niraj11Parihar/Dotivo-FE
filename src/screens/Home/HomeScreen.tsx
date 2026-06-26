@@ -1,4 +1,4 @@
-import { CheckCircle2, Circle, PlusCircle, SkipForward } from 'lucide-react-native';
+import { CheckCircle2, Circle, PlusCircle, SkipForward, Quote } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
@@ -17,6 +17,77 @@ import { useRouter } from 'expo-router';
 import MoodCheckInModal from '../../components/modals/MoodCheckInModal';
 import CountInputModal from '../../components/modals/CountInputModal';
 import { getDailyQuote } from '../../config/constants/quotes';
+import Svg, { Circle as SvgCircle } from 'react-native-svg';
+
+// ─── Helpers ────────────────────────────────────────────────────────
+
+function getGoalEmoji(title: string) {
+  const lower = title.toLowerCase();
+  if (lower.includes('gym') || lower.includes('workout') || lower.includes('exercise')) return '🏋️';
+  if (lower.includes('water') || lower.includes('drink')) return '💧';
+  if (lower.includes('read') || lower.includes('book')) return '📚';
+  if (lower.includes('meditat') || lower.includes('mind')) return '🧘';
+  if (lower.includes('code') || lower.includes('dev') || lower.includes('program')) return '💻';
+  if (lower.includes('sleep') || lower.includes('bed')) return '🌙';
+  if (lower.includes('walk') || lower.includes('step') || lower.includes('run')) return '🏃';
+  if (lower.includes('study') || lower.includes('learn')) return '📖';
+  return '🎯';
+}
+
+const AnimatedCircle = Animated.createAnimatedComponent(SvgCircle);
+
+function CircularProgress({ progress, color }: { progress: number; color: string }) {
+  const size = 120;
+  const strokeWidth = 12;
+  const center = size / 2;
+  const radius = center - strokeWidth / 2;
+  const circumference = 2 * Math.PI * radius;
+
+  const animatedValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(animatedValue, {
+      toValue: progress,
+      tension: 40,
+      friction: 10,
+      useNativeDriver: true,
+    }).start();
+  }, [progress]);
+
+  const strokeDashoffset = animatedValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [circumference, 0],
+  });
+
+  return (
+    <View style={styles.heroRingContainer}>
+      <Svg width={size} height={size}>
+        <SvgCircle
+          stroke={theme.colors.border}
+          cx={center}
+          cy={center}
+          r={radius}
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        <AnimatedCircle
+          stroke={color}
+          cx={center}
+          cy={center}
+          r={radius}
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          fill="none"
+          rotation="-90"
+          originX={center}
+          originY={center}
+        />
+      </Svg>
+    </View>
+  );
+}
 
 // ─── Goal Item ──────────────────────────────────────────────────────
 
@@ -56,20 +127,18 @@ function GoalItem({
     <TouchableOpacity
       style={[
         styles.goalItem,
-        isCompleted && { borderColor: goal.color + '40', backgroundColor: goal.color + '08' },
+        isCompleted && { borderColor: goal.color + '50', backgroundColor: goal.color + '10' },
         isPartial && styles.goalItemPartial,
         isSkipped && styles.goalItemSkipped,
       ]}
       onPress={() => !isSkipped && onToggle(goal)}
       onLongPress={() => !isSkipped && onLongPress(goal)}
       activeOpacity={0.75}
-      delayLongPress={450}
+      delayLongPress={400}
     >
-      {/* Accent bar */}
-      <View style={[styles.accentBar, { backgroundColor: isSkipped ? theme.colors.skipped : goal.color }]} />
-
       <View style={styles.goalBody}>
         <View style={styles.goalHeader}>
+          <Text style={styles.goalEmoji}>{getGoalEmoji(goal.title)}</Text>
           <Text
             style={[
               styles.goalTitle,
@@ -80,69 +149,48 @@ function GoalItem({
           >
             {goal.title}
           </Text>
-          {goal.isDailyMinimum && !isSkipped && (
-            <View style={styles.minBadge}>
-              <Text style={styles.minBadgeText}>MIN</Text>
-            </View>
-          )}
-          {isSkipped && (
-            <View style={styles.skippedBadge}>
-              <Text style={styles.skippedBadgeText}>SKIPPED</Text>
-            </View>
-          )}
         </View>
 
         {!isSkipped && (
-          <>
-            <Text style={styles.goalMeta}>
-              {goal.completedCount} / {goal.targetCount} units
-            </Text>
-            <View style={styles.progressTrack}>
-              <Animated.View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: progressAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: ['0%', '100%'],
-                    }),
-                    backgroundColor: barColor,
-                  },
-                ]}
-              />
-            </View>
-          </>
+          <View style={styles.goalFooter}>
+             <View style={styles.progressTrack}>
+                <Animated.View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: progressAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0%', '100%'],
+                      }),
+                      backgroundColor: barColor,
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={styles.goalMeta}>
+                {goal.completedCount} / {goal.targetCount}
+              </Text>
+          </View>
         )}
         {isSkipped && (
-          <Text style={styles.skippedMeta}>Rest day — momentum preserved</Text>
+          <Text style={styles.skippedMeta}>Rest day</Text>
         )}
       </View>
 
-      {/* Right side: check / skip */}
       <View style={styles.goalRight}>
         {!isSkipped && (
           <TouchableOpacity
-            style={styles.goalCheck}
+            style={[styles.goalCheck, isCompleted && { backgroundColor: goal.color, borderColor: goal.color }]}
             onPress={() => onToggle(goal)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
             {isCompleted ? (
-              <CheckCircle2 color={goal.color} size={26} />
+              <CheckCircle2 color="#000" size={24} strokeWidth={3} />
             ) : (
-              <Circle color={isPartial ? theme.colors.warning : theme.colors.border} size={26} />
+              <Circle color={isPartial ? theme.colors.warning : theme.colors.borderLight} size={28} strokeWidth={2} />
             )}
           </TouchableOpacity>
         )}
-        <TouchableOpacity
-          style={styles.skipBtn}
-          onPress={() => onSkip(goal)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <SkipForward
-            color={isSkipped ? theme.colors.primary : theme.colors.textFaint}
-            size={16}
-          />
-        </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
@@ -164,6 +212,17 @@ export default function TodayScreen() {
   const [countModal, setCountModal] = useState<DayPlanGoal | null>(null);
   const prevGreenRef = useRef(0);
 
+  // Pulse animation for today's dot
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 0.5, duration: 1000, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+
   useEffect(() => {
     if (!isAuthenticated) return;
     fetchTemplates();
@@ -177,7 +236,6 @@ export default function TodayScreen() {
   const optionalGoals = goals.filter(g => !g.isDailyMinimum);
   const completedMinimums = minimumGoals.filter(g => g.status === 'green');
 
-  // Trigger mood check-in when all minimums turn green
   useEffect(() => {
     if (minimumGoals.length > 0 && completedMinimums.length === minimumGoals.length) {
       if (prevGreenRef.current < minimumGoals.length) {
@@ -222,16 +280,16 @@ export default function TodayScreen() {
     : theme.colors.border;
 
   const momentumDots = Array.from({ length: 30 }).map((_, i) => history[i]);
-
-  const formattedDate = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  });
-
   const completedToday = activeGoals.filter(g => g.status === 'green').length;
   const totalActive = activeGoals.length;
-  const firstName = user?.name?.split(' ')[0] ?? '';
+  const completionRatio = totalActive > 0 ? completedToday / totalActive : 0;
+  
+  const remaining = totalActive - completedToday;
+  const heroSubtext = remaining === 0 
+    ? "Day completed. Momentum secured." 
+    : remaining === 1 
+      ? "1 small win completes your day."
+      : `${remaining} small wins can complete your day.`;
 
   return (
     <ScreenWrapper>
@@ -241,21 +299,9 @@ export default function TodayScreen() {
       >
         {/* ── Header ── */}
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.greeting}>
-              {firstName ? `Hey, ${firstName} 👋` : "Today's Grid"}
-            </Text>
-            <Text style={styles.date}>{formattedDate}</Text>
-            <Text style={styles.quote} numberOfLines={2}>{dailyQuote}</Text>
-          </View>
+          <Text style={styles.greeting}>Today</Text>
           <View style={styles.headerRight}>
-            <View style={[styles.statusIndicator, { backgroundColor: statusColor + '22', borderColor: statusColor }]}>
-              <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-              <Text style={[styles.statusText, { color: statusColor }]}>
-                {dayStatus === 'green' ? 'Win' : dayStatus === 'partial' ? 'Going' : 'Start'}
-              </Text>
-            </View>
-            {currentStreak > 1 && (
+            {currentStreak > 0 && (
               <View style={styles.streakBadge}>
                 <Text style={styles.streakText}>🔥 {currentStreak}d</Text>
               </View>
@@ -271,49 +317,41 @@ export default function TodayScreen() {
           </View>
         </View>
 
-        {/* ── Progress Summary ── */}
-        {totalActive > 0 && (
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryTop}>
-              <Text style={styles.summaryLabel}>TODAY'S PROGRESS</Text>
-              <Text style={styles.summaryFraction}>
-                <Text style={styles.summaryCompleted}>{completedToday}</Text>
-                <Text style={styles.summaryTotal}>/{totalActive}</Text>
-              </Text>
-            </View>
-            <View style={styles.summaryTrack}>
-              <View
-                style={[
-                  styles.summaryFill,
-                  {
-                    width: `${(completedToday / Math.max(totalActive, 1)) * 100}%`,
-                    backgroundColor: statusColor,
-                  },
-                ]}
-              />
-            </View>
+        {/* ── Hero Momentum Card ── */}
+        <View style={styles.heroCard}>
+          <CircularProgress progress={completionRatio} color={theme.colors.primaryLight} />
+          <View style={styles.heroTextContainer}>
+            <Text style={styles.heroTitle}>Today's Momentum</Text>
+            <Text style={styles.heroProgressText}>{completedToday}/{totalActive}</Text>
+            <Text style={styles.heroSubtitle}>{heroSubtext}</Text>
           </View>
-        )}
+        </View>
 
-        {/* ── Momentum Grid ── */}
+        {/* ── Daily Quote ── */}
+        <View style={styles.quoteCard}>
+           <Quote color={theme.colors.primaryLight} size={20} style={{ opacity: 0.6 }} />
+           <Text style={styles.quoteText}>{dailyQuote}</Text>
+        </View>
+
+        {/* ── Discipline Map (Mini Grid) ── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Momentum</Text>
+          <Text style={styles.sectionTitle}>Your Discipline Map</Text>
           <View style={styles.gridCard}>
             <View style={styles.gridContainer}>
               {momentumDots.map((item, i) => {
                 const score = item?.completionScore ?? 0;
                 const isToday = item?.date === today;
-                const opacity = score > 0 ? 0.15 + score * 0.85 : 0;
+                const opacity = score > 0 ? 0.2 + score * 0.8 : 0;
                 return (
-                  <View
+                  <Animated.View
                     key={i}
                     style={[
                       styles.dot,
                       score > 0 && {
-                        backgroundColor: theme.colors.primary,
+                        backgroundColor: theme.colors.primaryLight,
                         opacity,
                       },
-                      isToday && styles.dotToday,
+                      isToday && [styles.dotToday, { opacity: pulseAnim }],
                     ]}
                   />
                 );
@@ -322,36 +360,21 @@ export default function TodayScreen() {
           </View>
         </View>
 
-        {/* ── Daily Minimums ── */}
+        {/* ── Daily Goals ── */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Daily Minimums</Text>
-            <View style={[
-              styles.sectionBadge,
-              completedMinimums.length === minimumGoals.length && minimumGoals.length > 0
-                && styles.sectionBadgeComplete,
-            ]}>
-              <Text style={[
-                styles.sectionBadgeText,
-                completedMinimums.length === minimumGoals.length && minimumGoals.length > 0
-                  && { color: theme.colors.primary },
-              ]}>
-                {completedMinimums.length}/{minimumGoals.length}
-              </Text>
-            </View>
-          </View>
-          {minimumGoals.length === 0 ? (
+          <Text style={styles.sectionTitle}>Daily Goals</Text>
+          {goals.length === 0 ? (
             <Pressable
               style={styles.emptyCard}
               onPress={() => router.push('/modal' as any)}
             >
-              <PlusCircle color={theme.colors.textMuted} size={24} />
+              <PlusCircle color={theme.colors.textMuted} size={28} />
               <Text style={styles.emptyText}>
-                Add Daily Minimums from the Goals tab
+                No goals yet. Add a small win to start your momentum.
               </Text>
             </Pressable>
           ) : (
-            minimumGoals.map((goal) => (
+            goals.map((goal) => (
               <GoalItem
                 key={goal.goalTemplateId}
                 goal={goal}
@@ -363,42 +386,6 @@ export default function TodayScreen() {
           )}
         </View>
 
-        {/* ── Bonus Goals ── */}
-        {optionalGoals.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Bonus Goals</Text>
-              <Text style={styles.sectionHint}>Long-press to set count</Text>
-            </View>
-            {optionalGoals.map((goal) => (
-              <GoalItem
-                key={goal.goalTemplateId}
-                goal={goal}
-                onToggle={handleToggle}
-                onLongPress={handleLongPress}
-                onSkip={handleSkip}
-              />
-            ))}
-          </View>
-        )}
-
-        {/* ── Empty state ── */}
-        {goals.length === 0 && (
-          <View style={styles.fullEmptyState}>
-            <Text style={styles.fullEmptyEmoji}>🎯</Text>
-            <Text style={styles.fullEmptyTitle}>No goals yet</Text>
-            <Text style={styles.fullEmptySubtitle}>
-              Head to the Goals tab and add your first daily habit or minimum.
-            </Text>
-            <Pressable
-              style={styles.fullEmptyBtn}
-              onPress={() => router.push('/modal' as any)}
-            >
-              <PlusCircle color="#fff" size={18} />
-              <Text style={styles.fullEmptyBtnText}>Add a Goal</Text>
-            </Pressable>
-          </View>
-        )}
       </ScrollView>
 
       {/* Mood Check-In */}
@@ -428,169 +415,158 @@ export default function TodayScreen() {
 
 const styles = StyleSheet.create({
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 80,
+    paddingHorizontal: 20,
+    paddingBottom: 110,
+    paddingTop: 10,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginTop: 24,
-    marginBottom: 20,
-    gap: 12,
+    alignItems: 'center',
+    marginBottom: 24,
   },
-  headerLeft: { flex: 1 },
-  headerRight: { alignItems: 'flex-end', gap: 8 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   greeting: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '800',
     color: theme.colors.text,
     letterSpacing: -0.5,
   },
-  date: { fontSize: 13, color: theme.colors.textMuted, marginTop: 3 },
-  quote: {
-    fontSize: 12,
-    fontStyle: 'italic',
-    color: theme.colors.textMuted,
-    marginTop: 8,
-    lineHeight: 17,
-    opacity: 0.8,
-  },
-  statusIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: theme.radii.full,
-    borderWidth: 1,
-  },
-  statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusText: { fontSize: 12, fontWeight: '700' },
   streakBadge: {
-    backgroundColor: 'rgba(245,158,11,0.1)',
+    backgroundColor: 'rgba(250,204,21,0.15)',
     borderRadius: theme.radii.full,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderWidth: 1,
-    borderColor: 'rgba(245,158,11,0.25)',
+    borderColor: 'rgba(250,204,21,0.3)',
   },
-  streakText: { color: theme.colors.warning, fontSize: 13, fontWeight: '700' },
+  streakText: { color: theme.colors.warning, fontSize: 13, fontWeight: '800' },
   profileBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.colors.card,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.colors.cardElevated,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: theme.colors.borderLight,
   },
   profileInitial: {
-    color: theme.colors.primary,
+    color: theme.colors.text,
     fontSize: 16,
     fontWeight: '800',
   },
-  summaryCard: {
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.radii.l,
-    padding: 16,
+  
+  // Hero Card
+  heroCard: {
+    backgroundColor: theme.colors.cardElevated,
+    borderRadius: 24,
+    padding: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 20,
     borderWidth: 1,
     borderColor: theme.colors.border,
+    shadowColor: theme.colors.primaryLight,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.05,
+    shadowRadius: 20,
+    elevation: 5,
   },
-  summaryTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    marginBottom: 10,
+  heroRingContainer: {
+    marginRight: 20,
   },
-  summaryLabel: {
+  heroTextContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  heroTitle: {
     color: theme.colors.textMuted,
-    fontSize: 10,
+    fontSize: 13,
     fontWeight: '700',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
+    marginBottom: 4,
   },
-  summaryFraction: {},
-  summaryCompleted: {
+  heroProgressText: {
     color: theme.colors.text,
-    fontSize: 20,
+    fontSize: 36,
     fontWeight: '800',
+    letterSpacing: -1,
+    marginBottom: 6,
   },
-  summaryTotal: {
-    color: theme.colors.textMuted,
-    fontSize: 14,
+  heroSubtitle: {
+    color: theme.colors.secondary,
+    fontSize: 13,
     fontWeight: '500',
+    lineHeight: 18,
   },
-  summaryTrack: {
-    height: 5,
-    backgroundColor: theme.colors.border,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  summaryFill: { height: '100%', borderRadius: 3 },
-  section: { marginBottom: 24 },
-  sectionHeader: {
+
+  // Quote Card
+  quoteCard: {
     flexDirection: 'row',
+    backgroundColor: theme.colors.card,
+    borderRadius: 16,
+    padding: 16,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+    gap: 12,
+    marginBottom: 28,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
+  quoteText: {
+    flex: 1,
+    fontSize: 13,
+    fontStyle: 'italic',
+    color: theme.colors.text,
+    lineHeight: 18,
+    opacity: 0.9,
+  },
+
+  // Sections
+  section: { marginBottom: 28 },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '800',
     color: theme.colors.text,
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
+    marginBottom: 16,
   },
-  sectionHint: { fontSize: 11, color: theme.colors.textMuted },
-  sectionBadge: {
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.radii.full,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  sectionBadgeComplete: {
-    backgroundColor: 'rgba(16,185,129,0.1)',
-    borderColor: theme.colors.primaryBorder,
-  },
-  sectionBadgeText: {
-    color: theme.colors.textMuted,
-    fontSize: 13,
-    fontWeight: '700',
-  },
+
+  // Grid
   gridCard: {
     backgroundColor: theme.colors.card,
-    borderRadius: theme.radii.l,
-    padding: 14,
+    borderRadius: 20,
+    padding: 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 7,
+    gap: 8,
   },
   dot: {
-    width: 22,
-    height: 22,
-    borderRadius: 5,
-    backgroundColor: theme.colors.border,
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: theme.colors.borderLight,
   },
   dotToday: {
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: theme.colors.primaryLight,
+    backgroundColor: 'rgba(53,242,178,0.2)',
   },
+
+  // Goal Item
   goalItem: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.colors.card,
-    borderRadius: theme.radii.l,
-    marginBottom: 8,
+    borderRadius: 20,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    overflow: 'hidden',
+    padding: 16,
   },
   goalItemPartial: {
     borderColor: theme.colors.warning + '50',
@@ -598,21 +574,23 @@ const styles = StyleSheet.create({
   },
   goalItemSkipped: {
     borderColor: theme.colors.border,
-    backgroundColor: theme.colors.card,
-    opacity: 0.55,
+    backgroundColor: theme.colors.backgroundAlt,
+    opacity: 0.6,
   },
-  accentBar: { width: 4, alignSelf: 'stretch' },
-  goalBody: { flex: 1, padding: 12 },
+  goalBody: { flex: 1 },
   goalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
+    gap: 12,
+    marginBottom: 12,
+  },
+  goalEmoji: {
+    fontSize: 20,
   },
   goalTitle: {
     flex: 1,
     color: theme.colors.text,
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
   },
   goalTitleCompleted: {
@@ -623,61 +601,50 @@ const styles = StyleSheet.create({
     color: theme.colors.textFaint,
     textDecorationLine: 'line-through',
   },
-  minBadge: {
-    backgroundColor: 'rgba(16,185,129,0.12)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 5,
-  },
-  minBadgeText: {
-    color: theme.colors.primary,
-    fontSize: 8,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  skippedBadge: {
-    backgroundColor: 'rgba(61,78,106,0.4)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 5,
-  },
-  skippedBadgeText: {
-    color: theme.colors.skipped,
-    fontSize: 8,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+  goalFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   goalMeta: {
     color: theme.colors.textMuted,
-    fontSize: 11,
-    marginBottom: 7,
+    fontSize: 12,
+    fontWeight: '600',
+    width: 40,
   },
   skippedMeta: {
     color: theme.colors.textFaint,
-    fontSize: 11,
+    fontSize: 12,
     fontStyle: 'italic',
   },
   progressTrack: {
-    height: 4,
-    backgroundColor: theme.colors.border,
-    borderRadius: 2,
+    flex: 1,
+    height: 6,
+    backgroundColor: theme.colors.borderLight,
+    borderRadius: 3,
     overflow: 'hidden',
-    width: '85%',
   },
-  progressFill: { height: '100%', borderRadius: 2 },
+  progressFill: { height: '100%', borderRadius: 3 },
   goalRight: {
-    alignItems: 'center',
-    paddingRight: 6,
-    gap: 2,
+    paddingLeft: 16,
+    justifyContent: 'center',
   },
-  goalCheck: { padding: 8 },
-  skipBtn: { padding: 6 },
+  goalCheck: { 
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: theme.colors.borderLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
   emptyCard: {
     backgroundColor: theme.colors.card,
-    borderRadius: theme.radii.l,
-    padding: 20,
+    borderRadius: 20,
+    padding: 24,
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderStyle: 'dashed',
@@ -686,35 +653,6 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     fontSize: 14,
     textAlign: 'center',
-    lineHeight: 20,
-  },
-  fullEmptyState: {
-    alignItems: 'center',
-    paddingVertical: 60,
-    gap: 10,
-  },
-  fullEmptyEmoji: { fontSize: 52 },
-  fullEmptyTitle: {
-    color: theme.colors.text,
-    fontSize: 22,
-    fontWeight: '800',
-  },
-  fullEmptySubtitle: {
-    color: theme.colors.textMuted,
-    fontSize: 14,
-    textAlign: 'center',
     lineHeight: 22,
-    paddingHorizontal: 24,
-  },
-  fullEmptyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: theme.radii.full,
-    marginTop: 8,
-  },
-  fullEmptyBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  }
 });

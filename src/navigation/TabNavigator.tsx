@@ -1,31 +1,39 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Target, CalendarDays, CheckCircle2, Image as ImageIcon, User } from 'lucide-react-native';
+import { Target, CalendarDays, CheckCircle2, Image as ImageIcon } from 'lucide-react-native';
 import { theme } from '../config/constants/theme';
-import { Platform } from 'react-native';
+import { Platform, View } from 'react-native';
+import { BlurView } from 'expo-blur';
 
 export function TabNavigator() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: theme.colors.primary,
+        tabBarActiveTintColor: theme.colors.primaryLight,
         tabBarInactiveTintColor: theme.colors.textMuted,
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: theme.colors.card,
-          borderTopColor: theme.colors.border,
-          borderTopWidth: 1,
-          height: Platform.OS === 'ios' ? 88 : 64,
-          paddingBottom: Platform.OS === 'ios' ? 24 : 10,
-          paddingTop: 10,
+          position: 'absolute',
+          bottom: Platform.OS === 'ios' ? 24 : 16,
+          left: 20,
+          right: 20,
+          height: 64,
+          borderRadius: 32,
+          // Use translucent color for BlurView effect
+          backgroundColor: 'transparent',
+          borderTopWidth: 0,
+          borderWidth: 1,
+          borderColor: 'rgba(255,255,255,0.08)',
+          elevation: 0,
         },
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '700',
-          letterSpacing: 0.3,
-        },
+        tabBarBackground: () => (
+          <View style={{ flex: 1, borderRadius: 32, overflow: 'hidden' }}>
+            <BlurView intensity={30} tint="dark" style={{ flex: 1 }} />
+          </View>
+        ),
+        tabBarShowLabel: false,
         tabBarItemStyle: {
-          paddingVertical: 2,
+          paddingVertical: 12,
         },
       }}
     >
@@ -34,11 +42,18 @@ export function TabNavigator() {
         options={{
           title: 'Today',
           tabBarIcon: ({ color, focused }) => (
-            <CheckCircle2
-              size={focused ? 25 : 22}
-              color={color}
-              strokeWidth={focused ? 2.2 : 1.8}
-            />
+            <View style={focused ? {
+              backgroundColor: 'rgba(25, 217, 148, 0.15)',
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              borderRadius: 20,
+            } : { paddingHorizontal: 16, paddingVertical: 8 }}>
+              <CheckCircle2
+                size={22}
+                color={focused ? theme.colors.primaryLight : color}
+                strokeWidth={focused ? 2.5 : 2}
+              />
+            </View>
           ),
         }}
       />
@@ -46,13 +61,7 @@ export function TabNavigator() {
         name="goals"
         options={{
           title: 'Goals',
-          tabBarIcon: ({ color, focused }) => (
-            <Target
-              size={focused ? 25 : 22}
-              color={color}
-              strokeWidth={focused ? 2.2 : 1.8}
-            />
-          ),
+          href: null, // Hide from tab bar
         }}
       />
       <Tabs.Screen
@@ -60,11 +69,18 @@ export function TabNavigator() {
         options={{
           title: 'History',
           tabBarIcon: ({ color, focused }) => (
-            <CalendarDays
-              size={focused ? 25 : 22}
-              color={color}
-              strokeWidth={focused ? 2.2 : 1.8}
-            />
+            <View style={focused ? {
+              backgroundColor: 'rgba(25, 217, 148, 0.15)',
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              borderRadius: 20,
+            } : { paddingHorizontal: 16, paddingVertical: 8 }}>
+              <CalendarDays
+                size={22}
+                color={focused ? theme.colors.primaryLight : color}
+                strokeWidth={focused ? 2.5 : 2}
+              />
+            </View>
           ),
         }}
       />
@@ -73,11 +89,18 @@ export function TabNavigator() {
         options={{
           title: 'Wallpaper',
           tabBarIcon: ({ color, focused }) => (
-            <ImageIcon
-              size={focused ? 25 : 22}
-              color={color}
-              strokeWidth={focused ? 2.2 : 1.8}
-            />
+            <View style={focused ? {
+              backgroundColor: 'rgba(25, 217, 148, 0.15)',
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              borderRadius: 20,
+            } : { paddingHorizontal: 16, paddingVertical: 8 }}>
+              <ImageIcon
+                size={22}
+                color={focused ? theme.colors.primaryLight : color}
+                strokeWidth={focused ? 2.5 : 2}
+              />
+            </View>
           ),
         }}
       />

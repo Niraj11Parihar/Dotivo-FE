@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { Eye, EyeOff } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator, Alert, StyleSheet, Text, TextInput, Pressable, View, KeyboardAvoidingView, Platform,
+  ActivityIndicator, Alert, StyleSheet, Text, TextInput, Pressable, View, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { theme } from '../../config/constants/theme';
 import { useAuthStore } from '../../store/slices/authStore';
@@ -15,7 +15,7 @@ export default function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const { login, register, isLoading, error } = useAuthStore();
+  const { login, register, continueAsGuest, isLoading, error } = useAuthStore();
 
   const handleAuth = async () => {
     if (!email || !password || (!isLogin && !name)) {
@@ -38,7 +38,8 @@ export default function AuthScreen() {
       <StatusBar style="light" />
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <View style={styles.container}>
           {/* Logo area */}
@@ -60,7 +61,12 @@ export default function AuthScreen() {
             <Text style={styles.appTagline}>Your momentum, visualized.</Text>
           </View>
 
-          {/* Form Card */}
+          <ScrollView 
+            contentContainerStyle={styles.scrollContent} 
+            keyboardShouldPersistTaps="handled" 
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Form Card */}
           <View style={styles.card}>
             <Text style={styles.title}>{isLogin ? 'Welcome back' : 'Create account'}</Text>
             <Text style={styles.subtitle}>
@@ -131,7 +137,16 @@ export default function AuthScreen() {
               {isLogin ? "Don't have an account? " : 'Already have an account? '}
               <Text style={styles.switchTextBold}>{isLogin ? 'Sign up' : 'Sign in'}</Text>
             </Text>
-          </Pressable>
+            </Pressable>
+
+            {/* Skip for now */}
+            <Pressable
+              onPress={continueAsGuest}
+              style={({ pressed }) => [styles.skipBtn, { opacity: pressed ? 0.7 : 1 }]}
+            >
+              <Text style={styles.skipText}>Continue as Guest</Text>
+            </Pressable>
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -145,9 +160,15 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: 24,
+    paddingTop: 48,
+    paddingBottom: 16,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
     paddingBottom: 32,
   },
-  logoArea: { alignItems: 'center', marginBottom: 32 },
+  logoArea: { alignItems: 'center', marginBottom: 24 },
   logoBox: {
     backgroundColor: theme.colors.card,
     borderRadius: theme.radii.xl,
@@ -237,4 +258,6 @@ const styles = StyleSheet.create({
   switchBtn: { alignItems: 'center' },
   switchText: { color: theme.colors.textMuted, fontSize: 14 },
   switchTextBold: { color: theme.colors.primary, fontWeight: '700' },
+  skipBtn: { alignItems: 'center', marginTop: 24, paddingVertical: 10 },
+  skipText: { color: theme.colors.textMuted, fontSize: 14, fontWeight: '600', textDecorationLine: 'underline' },
 });
