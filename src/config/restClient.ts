@@ -118,7 +118,7 @@ export const quoteService = {
   getActiveQuotes: async () => {
     // Falls back to empty object if fails
     try {
-      const response = await api.get('/public/quotes');
+      const response = await axios.get(BASE_URL + '/public/quotes');
       return response.data;
     } catch (e) {
       console.warn('Failed to fetch dynamic quotes', e);
