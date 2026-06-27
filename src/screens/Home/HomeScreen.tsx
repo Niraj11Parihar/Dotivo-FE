@@ -200,13 +200,14 @@ function GoalItem({
 
 export default function TodayScreen() {
   const {
-    currentPlan, history, fetchDailyPlan, fetchHistory, fetchTemplates,
+    currentPlan, history, fetchDailyPlan, fetchHistory, fetchTemplates, fetchQuotes, quotes,
     logProgress, skipGoal, logMood, currentStreak,
   } = useGoalStore();
   const { isAuthenticated, user } = useAuthStore();
   const router = useRouter();
-  const today = new Date().toISOString().split('T')[0];
-  const dailyQuote = getDailyQuote(new Date().getDate());
+  const [date] = useState(new Date());
+  const today = date.toISOString().split('T')[0];
+  const dailyQuote = quotes.length > 0 ? quotes[date.getDate() % quotes.length] : "";
 
   const [moodVisible, setMoodVisible] = useState(false);
   const [countModal, setCountModal] = useState<DayPlanGoal | null>(null);
@@ -226,6 +227,7 @@ export default function TodayScreen() {
   useEffect(() => {
     if (!isAuthenticated) return;
     fetchTemplates();
+    fetchQuotes();
     fetchDailyPlan(today);
     fetchHistory();
   }, [today, isAuthenticated]);

@@ -4,7 +4,7 @@
     "slug": "dotivo",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./.assets/images/icon.png",
+    "icon": "./.assets/logo/logo.png",
     "scheme": "dotivo",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -14,7 +14,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#0F172A",
-        "foregroundImage": "./.assets/images/icon.png"
+        "foregroundImage": "./.assets/logo/logo.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -22,14 +22,14 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./.assets/images/dotivo-icon.png"
+      "favicon": "./.assets/logo/logo.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./.assets/images/dotivo-icon.png",
+          "image": "./.assets/logo/splashIcon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#0F172A",

@@ -4,6 +4,8 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { goalService, planService } from '../../config/restClient';
 import { syncWallpaperData } from '../../utils/wallpaper';
 import { GOAL_CATEGORIES } from '../../config/constants/goalTemplates';
+import { ALL_QUOTES } from '../../config/constants/quotes';
+import { quoteService } from '../../config/restClient';
 
 export type GoalCategory = typeof GOAL_CATEGORIES[number];
 
@@ -97,7 +99,10 @@ export interface GoalState {
   hasHydrated: boolean;
   customThemes: CustomTheme[];
 
+  quotes: string[];
+
   // Actions
+  fetchQuotes: () => Promise<void>;
   fetchTemplates: () => Promise<void>;
   fetchDailyPlan: (date: string) => Promise<void>;
   fetchHistory: (range?: 7 | 30 | 90) => Promise<void>;
@@ -297,9 +302,26 @@ export const useGoalStore = create<GoalState>()(
       isSyncing: false,
       hasHydrated: false,
       customThemes: [],
+      quotes: ALL_QUOTES,
 
       setHasOnboarded: (val) => set({ hasOnboarded: val }),
       _setHasHydrated: (state) => set({ hasHydrated: state }),
+
+      fetchQuotes: async () => {
+        try {
+          const quotesData = await quoteService.getActiveQuotes();
+          console.log('--- QUOTES API RESPONSE ---');
+          console.log(JSON.stringify(quotesData, null, 2));
+          console.log('---------------------------');
+          
+          const dynamicQuotes = Object.values(quotesData).flat() as string[];
+          if (dynamicQuotes.length > 0) {
+            set({ quotes: dynamicQuotes });
+          }
+        } catch (e) {
+          console.warn('Could not update quotes from API');
+        }
+      },
 
       saveCustomTheme: (theme) => {
         set({ customThemes: [...get().customThemes, theme] });
@@ -314,7 +336,10 @@ export const useGoalStore = create<GoalState>()(
         if (state.isSyncing) return;
         if (!state.hasHydrated) return;
 
-        // Need auth token and network (NetInfo would be ideal, but for now we assume online until fetch fails)
+        // Always fetch public quotes regardless of personal sync state
+        await get().fetchQuotes();
+
+        // Need auth token and network for personal data sync
         const token = await AsyncStorage.getItem('access_token');
         if (!token) return;
 
@@ -393,7 +418,7 @@ export const useGoalStore = create<GoalState>()(
 
         set({ isSyncing: false });
 
-        // Only fetch fresh data if queue is entirely empty so we don't overwrite pending data
+        // Only fetch fresh personal data if queue is entirely empty so we don't overwrite pending data
         if (!syncFailed && updatedQueue.length === 0) {
           await get().fetchTemplates();
           const today = new Date().toISOString().split('T')[0];
@@ -698,6 +723,7 @@ export const useGoalStore = create<GoalState>()(
         hasOnboarded: state.hasOnboarded,
         offlineQueue: state.offlineQueue,
         customThemes: state.customThemes,
+        quotes: state.quotes,
       }),
     }
   )

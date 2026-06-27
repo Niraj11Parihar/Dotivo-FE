@@ -19,16 +19,15 @@ export function TabNavigator() {
           right: 20,
           height: 64,
           borderRadius: 32,
-          // Use translucent color for BlurView effect
-          backgroundColor: 'transparent',
+          backgroundColor: 'rgba(10, 10, 10, 0.3)',
           borderTopWidth: 0,
           borderWidth: 1,
-          borderColor: 'rgba(255,255,255,0.08)',
+          borderColor: 'rgba(255,255,255,0.1)',
           elevation: 0,
         },
         tabBarBackground: () => (
           <View style={{ flex: 1, borderRadius: 32, overflow: 'hidden' }}>
-            <BlurView intensity={30} tint="dark" style={{ flex: 1 }} />
+            <BlurView intensity={80} tint="dark" style={{ flex: 1 }} />
           </View>
         ),
         tabBarShowLabel: false,

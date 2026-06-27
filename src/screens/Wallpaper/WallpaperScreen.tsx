@@ -22,7 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGoalStore } from '../../store/slices/goalStore';
 import {
   Download, Smartphone, Palette, Image as ImageIcon,
-  Type, Grid, X, ChevronRight, Check, RefreshCw,
+  Type, Grid, X, ChevronRight, Check, RefreshCw, Plus
 } from 'lucide-react-native';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
@@ -35,8 +35,6 @@ import {
   DEFAULT_WALLPAPER_CONFIG, DotShape, DotSize,
 } from '../../utils/wallpaper';
 import { WALLPAPER_THEMES, WallpaperTheme, getThemeById } from '../../config/constants/wallpaperThemes';
-import { getDailyQuote } from '../../config/constants/quotes';
-
 const { width } = Dimensions.get('window');
 const PREVIEW_SCALE = 0.62;
 const PREVIEW_WIDTH = width * PREVIEW_SCALE;
@@ -148,7 +146,7 @@ const colorRowStyles = StyleSheet.create({
 
 export default function WallpaperScreen() {
   const insets = useSafeAreaInsets();
-  const { history, currentPlan, customThemes, saveCustomTheme } = useGoalStore();
+  const { history, currentPlan, customThemes, saveCustomTheme, quotes } = useGoalStore();
   const viewShotRef = useRef<View>(null);
 
   // ── Config State ──────────────────────────────────────────────────
@@ -432,12 +430,23 @@ export default function WallpaperScreen() {
         {/* Theme Presets */}
         <Section icon={<Palette color={theme.colors.primary} size={18} />} title="Theme Presets">
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
+            <Pressable
+              style={[styles.themeCard, selectedThemeId === 'custom' && styles.themeCardSelected]}
+              onPress={() => {
+                setSelectedThemeId('custom');
+                setShowSaveThemeModal(true);
+              }}
+            >
+              <View style={[styles.themeCardBg, { backgroundColor: theme.colors.cardElevated, borderWidth: 1, borderColor: theme.colors.border, borderStyle: 'dashed' }]}>
+                <Plus color={theme.colors.textMuted} size={32} />
+              </View>
+            </Pressable>
             {[...WALLPAPER_THEMES, ...customThemes].map((t) => {
               const isSelected = selectedThemeId === t.id;
               const bg = (t as any).background || (t as any).colors?.background;
               const dotF = (t as any).dotFull || (t as any).colors?.primary;
               const dotE = (t as any).dotEmpty || (t as any).colors?.empty;
-              
+
               return (
                 <Pressable
                   key={t.id}
@@ -447,10 +456,10 @@ export default function WallpaperScreen() {
                     const next: WallpaperConfig = {
                       ...config,
                       colors: { primary: dotF, empty: dotE, background: bg },
-                      text: { 
-                        ...config.text, 
-                        titleColor: (t as any).titleColor || config.text.titleColor, 
-                        subtitleColor: (t as any).subtitleColor || config.text.subtitleColor 
+                      text: {
+                        ...config.text,
+                        titleColor: (t as any).titleColor || config.text.titleColor,
+                        subtitleColor: (t as any).subtitleColor || config.text.subtitleColor
                       },
                     };
                     setConfig(next);
@@ -483,16 +492,7 @@ export default function WallpaperScreen() {
               );
             })}
           </ScrollView>
-          
-          {selectedThemeId === 'custom' && (
-            <Pressable 
-              style={[styles.primaryAction, { marginTop: 16, backgroundColor: 'rgba(16, 185, 129, 0.15)' }]} 
-              onPress={() => setShowSaveThemeModal(true)}
-            >
-              <Palette color={theme.colors.primaryLight} size={18} />
-              <Text style={[styles.primaryActionText, { color: theme.colors.primaryLight }]}>Save as New Theme Preset</Text>
-            </Pressable>
-          )}
+
         </Section>
 
         {/* Colors */}
@@ -547,7 +547,7 @@ export default function WallpaperScreen() {
             />
             <Pressable
               style={styles.autofillQuoteBtn}
-              onPress={() => updateText({ quoteText: getDailyQuote() })}
+              onPress={() => updateText({ quoteText: quotes.length > 0 ? quotes[new Date().getDate() % quotes.length] : '' })}
             >
               <Text style={styles.autofillQuoteBtnText}>Use today's quote</Text>
             </Pressable>
@@ -752,7 +752,7 @@ export default function WallpaperScreen() {
         <View style={styles.pickerOverlay}>
           <View style={[styles.pickerContainer, { gap: 16 }]}>
             <Text style={styles.pickerTitle}>Save Theme Preset</Text>
-            
+
             <View>
               <Text style={[styles.inputLabel, { marginBottom: 8 }]}>Emoji</Text>
               <TextInput
@@ -776,14 +776,14 @@ export default function WallpaperScreen() {
             </View>
 
             <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
-              <Pressable 
-                style={[styles.primaryAction, { flex: 1, backgroundColor: theme.colors.card }]} 
+              <Pressable
+                style={[styles.primaryAction, { flex: 1, backgroundColor: theme.colors.card }]}
                 onPress={() => setShowSaveThemeModal(false)}
               >
                 <Text style={[styles.primaryActionText, { color: theme.colors.text }]}>Cancel</Text>
               </Pressable>
-              <Pressable 
-                style={[styles.primaryAction, { flex: 1, opacity: newThemeName.trim() ? 1 : 0.5 }]} 
+              <Pressable
+                style={[styles.primaryAction, { flex: 1, opacity: newThemeName.trim() ? 1 : 0.5 }]}
                 onPress={handleSaveCustomTheme}
                 disabled={!newThemeName.trim()}
               >

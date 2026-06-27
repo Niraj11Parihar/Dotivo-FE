@@ -18,6 +18,19 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+// Interceptor to handle 401 Unauthorized responses
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response && error.response.status === 401) {
+      console.warn('Authentication token expired or invalid. Clearing token.');
+      await AsyncStorage.removeItem('access_token');
+      // In a full app, you would also trigger a navigation event to the Login screen here
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Auth Services
 export const authService = {
   register: async (data: any) => {
@@ -98,6 +111,19 @@ export const planService = {
     // This calls Phase 4 of your backend guide
     const response = await api.post('/wallpaper/export', {}, { responseType: 'blob' });
     return response.data;
+  }
+};
+
+export const quoteService = {
+  getActiveQuotes: async () => {
+    // Falls back to empty object if fails
+    try {
+      const response = await api.get('/public/quotes');
+      return response.data;
+    } catch (e) {
+      console.warn('Failed to fetch dynamic quotes', e);
+      return {};
+    }
   }
 };
 
