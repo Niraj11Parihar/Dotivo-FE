@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
   Pressable,
+  RefreshControl,
 } from 'react-native';
 import { ScreenWrapper } from '../../components/common/ScreenWrapper';
 import { theme } from '../../config/constants/theme';
@@ -120,8 +121,8 @@ function GoalItem({
   const barColor = isCompleted
     ? goal.color
     : isPartial
-    ? theme.colors.warning
-    : theme.colors.border;
+      ? theme.colors.warning
+      : theme.colors.border;
 
   return (
     <TouchableOpacity
@@ -153,23 +154,23 @@ function GoalItem({
 
         {!isSkipped && (
           <View style={styles.goalFooter}>
-             <View style={styles.progressTrack}>
-                <Animated.View
-                  style={[
-                    styles.progressFill,
-                    {
-                      width: progressAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0%', '100%'],
-                      }),
-                      backgroundColor: barColor,
-                    },
-                  ]}
-                />
-              </View>
-              <Text style={styles.goalMeta}>
-                {goal.completedCount} / {goal.targetCount}
-              </Text>
+            <View style={styles.progressTrack}>
+              <Animated.View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: progressAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['0%', '100%'],
+                    }),
+                    backgroundColor: barColor,
+                  },
+                ]}
+              />
+            </View>
+            <Text style={styles.goalMeta}>
+              {goal.completedCount} / {goal.targetCount}
+            </Text>
           </View>
         )}
         {isSkipped && (
@@ -212,6 +213,19 @@ export default function TodayScreen() {
   const [moodVisible, setMoodVisible] = useState(false);
   const [countModal, setCountModal] = useState<DayPlanGoal | null>(null);
   const prevGreenRef = useRef(0);
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    if (!isAuthenticated) return;
+    setRefreshing(true);
+    await useGoalStore.getState().syncWithBackend();
+    await fetchTemplates();
+    await fetchQuotes();
+    await fetchDailyPlan(today);
+    await fetchHistory(30);
+    setRefreshing(false);
+  }, [isAuthenticated, today, fetchTemplates, fetchQuotes, fetchDailyPlan, fetchHistory]);
 
   // Pulse animation for today's dot
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -278,18 +292,18 @@ export default function TodayScreen() {
   const dayStatus = currentPlan?.summaryStatus ?? 'grey';
   const statusColor =
     dayStatus === 'green' ? theme.colors.primary
-    : dayStatus === 'partial' ? theme.colors.warning
-    : theme.colors.border;
+      : dayStatus === 'partial' ? theme.colors.warning
+        : theme.colors.border;
 
   const momentumDots = Array.from({ length: 30 }).map((_, i) => history[i]);
   const completedToday = activeGoals.filter(g => g.status === 'green').length;
   const totalActive = activeGoals.length;
   const completionRatio = totalActive > 0 ? completedToday / totalActive : 0;
-  
+
   const remaining = totalActive - completedToday;
-  const heroSubtext = remaining === 0 
-    ? "Day completed. Momentum secured." 
-    : remaining === 1 
+  const heroSubtext = remaining === 0
+    ? "Day completed. Momentum secured."
+    : remaining === 1
       ? "1 small win completes your day."
       : `${remaining} small wins can complete your day.`;
 
@@ -298,6 +312,16 @@ export default function TodayScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          isAuthenticated ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.colors.primary}
+              colors={[theme.colors.primary]}
+            />
+          ) : undefined
+        }
       >
         {/* ── Header ── */}
         <View style={styles.header}>
@@ -331,8 +355,8 @@ export default function TodayScreen() {
 
         {/* ── Daily Quote ── */}
         <View style={styles.quoteCard}>
-           <Quote color={theme.colors.primaryLight} size={20} style={{ opacity: 0.6 }} />
-           <Text style={styles.quoteText}>{dailyQuote}</Text>
+          <Quote color={theme.colors.primaryLight} size={20} style={{ opacity: 0.6 }} />
+          <Text style={styles.quoteText}>{dailyQuote}</Text>
         </View>
 
         {/* ── Discipline Map (Mini Grid) ── */}
@@ -458,7 +482,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
   },
-  
+
   // Hero Card
   heroCard: {
     backgroundColor: theme.colors.cardElevated,
@@ -631,7 +655,7 @@ const styles = StyleSheet.create({
     paddingLeft: 16,
     justifyContent: 'center',
   },
-  goalCheck: { 
+  goalCheck: {
     width: 44,
     height: 44,
     borderRadius: 22,
