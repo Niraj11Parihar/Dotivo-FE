@@ -310,10 +310,6 @@ export const useGoalStore = create<GoalState>()(
       fetchQuotes: async () => {
         try {
           const quotesData = await quoteService.getActiveQuotes();
-          console.log('--- QUOTES API RESPONSE ---');
-          console.log(JSON.stringify(quotesData, null, 2));
-          console.log('---------------------------');
-          
           const dynamicQuotes = Object.values(quotesData).flat() as string[];
           if (dynamicQuotes.length > 0) {
             set({ quotes: dynamicQuotes });
@@ -336,17 +332,13 @@ export const useGoalStore = create<GoalState>()(
         if (state.isSyncing) return;
         if (!state.hasHydrated) return;
 
-        // Always fetch public quotes regardless of personal sync state
-        await get().fetchQuotes();
-
-        // Need auth token and network for personal data sync
         const token = await AsyncStorage.getItem('access_token');
         if (!token) return;
 
         if (state.offlineQueue.length === 0) return;
 
         set({ isSyncing: true });
-        
+
         let localToServerIdMap: Record<string, string> = {};
         let syncFailed = false;
 
@@ -358,20 +350,20 @@ export const useGoalStore = create<GoalState>()(
             if (op.type === 'CREATE_GOAL') {
               const res = await goalService.createTemplate(op.payload);
               localToServerIdMap[op.localId] = res._id;
-            } 
+            }
             else if (op.type === 'UPDATE_GOAL') {
               const actualId = localToServerIdMap[op.goalId] || op.goalId;
               // If it's a local ID and not in map, it must have been deleted or never created on backend. Safe to ignore or retry later.
               if (!actualId.startsWith('local-')) {
                 await goalService.updateTemplate(actualId, op.payload);
               }
-            } 
+            }
             else if (op.type === 'DELETE_GOAL') {
               const actualId = localToServerIdMap[op.goalId] || op.goalId;
               if (!actualId.startsWith('local-')) {
                 await goalService.deleteTemplate(actualId);
               }
-            } 
+            }
             else if (op.type === 'UPSERT_COMPLETION') {
               const actualId = localToServerIdMap[op.goalId] || op.goalId;
               if (!actualId.startsWith('local-')) {
@@ -393,14 +385,14 @@ export const useGoalStore = create<GoalState>()(
             op.retryCount += 1;
             set({ offlineQueue: [...updatedQueue] });
             syncFailed = true;
-            break; 
+            break;
           }
         }
 
         // Apply ID mappings to local state if we created any goals
         if (Object.keys(localToServerIdMap).length > 0) {
           const mapId = (id: string) => localToServerIdMap[id] || id;
-          
+
           set((s) => ({
             templates: s.templates.map(t => ({ ...t, _id: mapId(t._id) })),
             currentPlan: s.currentPlan ? {
@@ -417,6 +409,9 @@ export const useGoalStore = create<GoalState>()(
         }
 
         set({ isSyncing: false });
+
+        // Always fetch public quotes regardless of personal sync success
+        await get().fetchQuotes();
 
         // Only fetch fresh personal data if queue is entirely empty so we don't overwrite pending data
         if (!syncFailed && updatedQueue.length === 0) {
@@ -540,7 +535,7 @@ export const useGoalStore = create<GoalState>()(
       addTemplate: async (data) => {
         const localId = `local-${Date.now()}`;
         const newTemplate = { ...data, _id: localId };
-        
+
         set((state) => ({
           templates: [...state.templates, newTemplate],
           offlineQueue: [...state.offlineQueue, {
