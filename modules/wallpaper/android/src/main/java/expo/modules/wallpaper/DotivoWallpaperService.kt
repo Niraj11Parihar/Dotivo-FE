@@ -88,6 +88,8 @@ class DotivoWallpaperService : WallpaperService() {
             var cols = 5
             var useImage = false
             var imageUri = ""
+            var dotShape = "rounded"
+            var dotSizeLevel = "medium"
 
             // Parse configuration
             try {
@@ -127,6 +129,8 @@ class DotivoWallpaperService : WallpaperService() {
                         val layoutObj = config.optJSONObject("layout")
                         if (layoutObj != null) {
                             cols = layoutObj.optInt("columns", cols).coerceIn(3, 10)
+                            dotShape = layoutObj.optString("dotShape", dotShape)
+                            dotSizeLevel = layoutObj.optString("dotSize", dotSizeLevel)
                         }
 
                         val imgObj = config.optJSONObject("backgroundImage")
@@ -171,20 +175,34 @@ class DotivoWallpaperService : WallpaperService() {
                 canvas.drawRect(0f, 0f, w, h, overlayPaint)
             }
 
-            // Draw Grid
+            // Exact React Native Layout Math using DP to PX conversion
+            val density = resources.displayMetrics.density
+            val safePaddingX = 32f * density
+            val safeTop = 160f * density
+            val safeBottom = 120f * density
+            val gap = 6f * density
+            
             val rows = Math.ceil(30.0 / cols).toInt()
-            val dotSize = ((w * 0.85f) / cols).coerceAtMost(w * 0.12f)
-            val gap = dotSize * 0.25f
+            val availableWidth = w - safePaddingX * 2f
+            val availableHeight = h - safeTop - safeBottom
+
+            val maxDotByWidth = (availableWidth - gap * (cols - 1)) / cols
+            val maxDotByHeight = (availableHeight - gap * (rows - 1)) / rows
+            val baseDotSize = Math.min(maxDotByWidth, maxDotByHeight)
+
+            var sizeMultiplier = 1.0f
+            if (dotSizeLevel == "small") sizeMultiplier = 0.72f
+            else if (dotSizeLevel == "medium") sizeMultiplier = 0.85f
+            else if (dotSizeLevel == "large") sizeMultiplier = 1.0f
+
+            val dotSize = Math.max(2f * density, baseDotSize * sizeMultiplier)
+
             val gridW = cols * dotSize + (cols - 1) * gap
             val gridH = rows * dotSize + (rows - 1) * gap
+            
+            // React Native gridWrapper is flex-end inside availableHeight
             val startX = (w - gridW) / 2f
-            val startY = (h - gridH) / 2f - h * 0.04f
-
-            textPaint.textSize = w * 0.08f
-            canvas.drawText(title, w / 2f, startY - dotSize * 1.5f, textPaint)
-
-            subtitlePaint.textSize = w * 0.04f
-            canvas.drawText(subtitle, w / 2f, startY - dotSize * 0.8f, subtitlePaint)
+            val startY = safeTop + availableHeight - gridH // which equals h - safeBottom - gridH
 
             for (i in 0 until 30) {
                 val row = i / cols
@@ -192,19 +210,32 @@ class DotivoWallpaperService : WallpaperService() {
                 val left = startX + col * (dotSize + gap)
                 val top  = startY + row * (dotSize + gap)
                 val rect = RectF(left, top, left + dotSize, top + dotSize)
-                val radius = dotSize * 0.22f
+                
+                val radius = when (dotShape) {
+                    "square" -> 2f * density
+                    "circle" -> dotSize / 2f
+                    else -> dotSize * 0.3f // rounded
+                }
 
                 val score = scores.getOrNull(i)
                 dotPaint.color = if (score == null) colorFuture else lerpColor(score)
                 canvas.drawRoundRect(rect, radius, radius, dotPaint)
             }
 
+            // Draw text BELOW the grid, matching React Native's textBlock
+            val textBlockY = startY + gridH + (12f * density)
+            textPaint.textSize = Math.max(16f, dotSize * 0.8f) // Dynamic scale based on grid size
+            canvas.drawText(title, w / 2f, textBlockY, textPaint)
+
+            subtitlePaint.textSize = Math.max(10f, dotSize * 0.45f)
+            canvas.drawText(subtitle, w / 2f, textBlockY + (16f * density), subtitlePaint)
+
             val winCount = scores.count { it >= 1.0 }
-            subtitlePaint.textSize = w * 0.035f
+            val quoteY = h - (60f * density) // bottomContainer area
             canvas.drawText(
                 "$winCount / 30 days won",
                 w / 2f,
-                startY + gridH + dotSize * 1.2f,
+                quoteY,
                 subtitlePaint
             )
         }

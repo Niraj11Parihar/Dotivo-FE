@@ -5,7 +5,7 @@ import { updateWallpaperData } from '../../modules/wallpaper';
 
 export const WALLPAPER_SYNC_KEY = 'dotivo_wallpaper_payload';
 
-export type DotShape = 'square' | 'rounded' | 'circle' | 'diamond';
+export type DotShape = 'square' | 'rounded' | 'circle';
 export type DotSize = 'small' | 'medium' | 'large';
 
 export interface WallpaperConfig {
@@ -76,6 +76,43 @@ export const DEFAULT_WALLPAPER_CONFIG: WallpaperConfig = {
   },
 };
 
+export function calculateDotLayout(
+  screenWidth: number,
+  screenHeight: number,
+  totalDays: number,
+  columns: number,
+  selectedDotSize: DotSize,
+  dotShape: DotShape
+) {
+  const SAFE_PADDING_X = 32;
+  const SAFE_TOP = 160;
+  const SAFE_BOTTOM = 120;
+  const gap = 6;
+
+  const rows = Math.ceil(totalDays / columns);
+
+  const availableWidth = screenWidth - SAFE_PADDING_X * 2;
+  const availableHeight = screenHeight - SAFE_TOP - SAFE_BOTTOM;
+
+  const maxDotByWidth = (availableWidth - gap * (columns - 1)) / columns;
+  const maxDotByHeight = (availableHeight - gap * (rows - 1)) / rows;
+  const baseDotSize = Math.min(maxDotByWidth, maxDotByHeight);
+
+  let sizeMultiplier = 1;
+  if (selectedDotSize === 'small') sizeMultiplier = 0.72;
+  else if (selectedDotSize === 'medium') sizeMultiplier = 0.85;
+  else if (selectedDotSize === 'large') sizeMultiplier = 1.0;
+
+  let finalDotSize = Math.max(2, baseDotSize * sizeMultiplier);
+
+
+  return {
+    dotSize: finalDotSize,
+    gap: gap,
+  };
+}
+
+
 export async function getWallpaperPayload(): Promise<WallpaperPayload | null> {
   try {
     const stored = await AsyncStorage.getItem(WALLPAPER_SYNC_KEY);
@@ -91,7 +128,7 @@ export async function getWallpaperPayload(): Promise<WallpaperPayload | null> {
       if (!config.text.quoteText) config.text.quoteText = 'Discipline equals freedom.';
       return { ...parsed, config };
     }
-  } catch (e) {}
+  } catch (e) { }
   return null;
 }
 

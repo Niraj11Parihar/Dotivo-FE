@@ -5,7 +5,7 @@ import { theme } from '../config/constants/theme';
 import { useAuthStore } from '../store/slices/authStore';
 import { useGoalStore } from '../store/slices/goalStore';
 import { useRouter } from 'expo-router';
-import { LogOut, ChevronLeft, Download, Trash2, Star, Flame, Calendar } from 'lucide-react-native';
+import { LogOutIcon as LogOut, ChevronLeftIcon as ChevronLeft, DownloadIcon as Download, Trash2Icon as Trash2, StarIcon as Star, FlameIcon as Flame, CalendarIcon as Calendar } from '../svg';
 import { userService } from '../config/restClient';
 
 export default function ProfileScreen() {

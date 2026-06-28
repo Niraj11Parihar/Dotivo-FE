@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { Plus, Target, Repeat, MoreVertical } from 'lucide-react-native';
+import { PlusIcon as Plus, TargetIcon as Target, RepeatIcon as Repeat, MoreVerticalIcon as MoreVertical } from '../../../svg';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,

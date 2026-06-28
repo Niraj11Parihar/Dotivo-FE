@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Target, CalendarDays, CheckCircle2, Image as ImageIcon } from 'lucide-react-native';
+import { TargetIcon as Target, CalendarDaysIcon as CalendarDays, CheckCircle2Icon as CheckCircle2, ImageIcon } from '../svg';
 import { theme } from '../config/constants/theme';
 import { Platform, View } from 'react-native';
 import { BlurView } from 'expo-blur';

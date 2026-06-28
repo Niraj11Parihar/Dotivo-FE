@@ -15,7 +15,7 @@ import { ScreenWrapper } from '../common/ScreenWrapper';
 import { theme } from '../../config/constants/theme';
 import { useGoalStore } from '../../store/slices/goalStore';
 import { GOAL_TEMPLATES, GOAL_CATEGORIES, GoalPreset } from '../../config/constants/goalTemplates';
-import { Check, ChevronLeft, Clock, X } from 'lucide-react-native';
+import { CheckIcon as Check, ChevronLeftIcon as ChevronLeft, ClockIcon as Clock, XIcon as X } from '../../svg';
 
 const PALETTE = [
   '#10B981', '#34D399', '#3B82F6', '#6366F1', '#8B5CF6',

@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { Eye, EyeOff } from 'lucide-react-native';
+import { OpenEyeIcon as Eye, CloseEyeIcon as EyeOff } from '../../svg';
 import React, { useState } from 'react';
 import {
   ActivityIndicator, Alert, StyleSheet, Text, TextInput, Pressable, View, KeyboardAvoidingView, Platform, ScrollView,

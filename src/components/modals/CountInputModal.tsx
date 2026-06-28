@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, Pressable, StyleSheet, TextInput, Keyboard } from 'react-native';
 import { theme } from '../../config/constants/theme';
-import { X, Check } from 'lucide-react-native';
+import { XIcon as X, CheckIcon as Check } from '../../svg';
 
 interface CountInputModalProps {
   visible: boolean;

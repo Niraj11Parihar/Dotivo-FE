@@ -21,9 +21,9 @@ import { theme } from '../../config/constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGoalStore } from '../../store/slices/goalStore';
 import {
-  Download, Smartphone, Palette, Image as ImageIcon,
-  Type, Grid, X, ChevronRight, Check, RefreshCw, Plus
-} from 'lucide-react-native';
+  DownloadIcon as Download, SmartphoneIcon as Smartphone, PaletteIcon as Palette, ImageIcon,
+  TypeIcon as Type, GridIcon as Grid, XIcon as X, ChevronRightIcon as ChevronRight, CheckIcon as Check, RefreshCwIcon as RefreshCw, PlusIcon as Plus
+} from '../../svg';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import * as MediaLibrary from 'expo-media-library';
@@ -33,18 +33,18 @@ import { openWallpaperPicker } from '../../../modules/wallpaper';
 import {
   syncWallpaperData, WallpaperConfig, getWallpaperPayload,
   DEFAULT_WALLPAPER_CONFIG, DotShape, DotSize,
+  calculateDotLayout,
 } from '../../utils/wallpaper';
 import { WALLPAPER_THEMES, WallpaperTheme, getThemeById } from '../../config/constants/wallpaperThemes';
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 const PREVIEW_SCALE = 0.62;
 const PREVIEW_WIDTH = width * PREVIEW_SCALE;
-const PREVIEW_HEIGHT = PREVIEW_WIDTH * (19.5 / 9); // modern phone aspect ratio
+const PREVIEW_HEIGHT = height * PREVIEW_SCALE;
 
 const DOT_SHAPES: { id: DotShape; label: string }[] = [
   { id: 'square', label: '▪' },
   { id: 'rounded', label: '▪' },
   { id: 'circle', label: '●' },
-  { id: 'diamond', label: '◆' },
 ];
 
 const DOT_SIZES: { id: DotSize; label: string; px: number }[] = [
@@ -57,8 +57,7 @@ function getDotRadius(shape: DotShape, size: number): number {
   switch (shape) {
     case 'square': return 2;
     case 'rounded': return size * 0.3;
-    case 'circle': return size / 2;
-    case 'diamond': return 2;
+    case 'circle': return 9999;
     default: return size * 0.3;
   }
 }
@@ -347,10 +346,20 @@ export default function WallpaperScreen() {
     return history[i - 1];
   });
 
-  const dotPx = getDotSizePx(config.layout.dotSize);
-  const dotBorderRadius = getDotRadius(config.layout.dotShape, dotPx);
-  const previewDotPx = Math.max(4, Math.floor((PREVIEW_WIDTH - 48) / config.layout.columns) - 5);
+  const layoutInfo = calculateDotLayout(
+    width,
+    height,
+    momentumDots.length,
+    config.layout.columns,
+    config.layout.dotSize,
+    config.layout.dotShape
+  );
+
+  const previewDotPx = layoutInfo.dotSize * PREVIEW_SCALE;
+  const previewGapPx = layoutInfo.gap * PREVIEW_SCALE;
   const previewBorderRadius = getDotRadius(config.layout.dotShape, previewDotPx);
+  // Add 2px buffer to prevent early wrap due to fractional pixel precision
+  const previewGridWidth = Math.ceil(config.layout.columns * previewDotPx + Math.max(0, config.layout.columns - 1) * previewGapPx) + 2;
 
   const WallpaperPreviewContent = (
     <View
@@ -369,7 +378,9 @@ export default function WallpaperScreen() {
               config={config}
               momentumDots={momentumDots}
               previewDotPx={previewDotPx}
+              previewGapPx={previewGapPx}
               previewBorderRadius={previewBorderRadius}
+              previewGridWidth={previewGridWidth}
             />
           </View>
         </ImageBackground>
@@ -379,7 +390,9 @@ export default function WallpaperScreen() {
             config={config}
             momentumDots={momentumDots}
             previewDotPx={previewDotPx}
+            previewGapPx={previewGapPx}
             previewBorderRadius={previewBorderRadius}
+            previewGridWidth={previewGridWidth}
           />
         </View>
       )}
@@ -605,7 +618,7 @@ export default function WallpaperScreen() {
               >
                 <Text style={[
                   styles.chipText,
-                  { fontSize: s.id === 'diamond' ? 14 : 18 },
+                  { fontSize: 18 },
                   config.layout.dotShape === s.id && styles.chipTextActive,
                 ]}>
                   {s.label}
@@ -802,65 +815,83 @@ function WallpaperContentInner({
   config,
   momentumDots,
   previewDotPx,
+  previewGapPx,
   previewBorderRadius,
+  previewGridWidth,
 }: {
   config: WallpaperConfig;
   momentumDots: Array<{ completionScore: number } | undefined>;
   previewDotPx: number;
+  previewGapPx: number;
   previewBorderRadius: number;
+  previewGridWidth: number;
 }) {
+  const now = new Date();
+  let h = now.getHours() % 12;
+  if (h === 0) h = 12;
+  const m = now.getMinutes().toString().padStart(2, '0');
+  const timeString = `${h}:${m}`;
+  const dateString = now.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+
   return (
     <View style={innerStyles.content}>
       <View style={innerStyles.statusBar} />
-      {config.text.showText && (
-        <>
-          <Text style={innerStyles.clock}>09:41</Text>
-          <Text style={[innerStyles.dateText, { color: config.text.subtitleColor }]}>
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-          </Text>
-        </>
-      )}
-      <View style={innerStyles.gridCard}>
-        <View style={[innerStyles.grid, { gap: Math.max(2, Math.floor(previewDotPx * 0.3)) }]}>
-          {momentumDots.map((item, i) => {
-            let score = item?.completionScore ?? 0;
-            if (score > 1) score = score / 100;
-            const opacity = score > 0
-              ? config.layout.dotOpacityMin + score * (config.layout.dotOpacityMax - config.layout.dotOpacityMin)
-              : config.layout.dotOpacityMin;
-            return (
-              <View
-                key={i}
-                style={[
-                  {
-                    width: previewDotPx,
-                    height: previewDotPx,
-                    borderRadius: previewBorderRadius,
-                    backgroundColor: score > 0 ? config.colors.primary : config.colors.empty,
-                    opacity: score > 0 ? opacity : 0.4,
-                  },
-                  config.layout.dotShape === 'diamond' && { transform: [{ rotate: '45deg' }] }
-                ]}
-              />
-            );
-          })}
-        </View>
+      <View style={innerStyles.clockContainer}>
         {config.text.showText && (
-          <View style={innerStyles.textBlock}>
-            <Text style={[innerStyles.titleText, { color: config.text.titleColor }]} numberOfLines={1}>
-              {config.text.title}
+          <>
+            <Text style={innerStyles.clock}>{timeString}</Text>
+            <Text style={[innerStyles.dateText, { color: config.text.subtitleColor }]}>
+              {dateString}
             </Text>
-            <Text style={[innerStyles.subtitleText, { color: config.text.subtitleColor }]} numberOfLines={1}>
-              {config.text.subtitle}
-            </Text>
-          </View>
+          </>
         )}
       </View>
-      {config.text.showQuote && config.text.quoteText ? (
-        <Text style={[innerStyles.quoteText, { color: config.text.subtitleColor }]} numberOfLines={3}>
-          "{config.text.quoteText}"
-        </Text>
-      ) : null}
+
+      <View style={innerStyles.gridWrapper}>
+        <View style={[innerStyles.gridCard, { paddingVertical: Math.max(24, previewDotPx * 1.5), paddingHorizontal: Math.max(16, previewDotPx * 1.2) }]}>
+          <View style={[innerStyles.grid, { gap: previewGapPx, width: previewGridWidth }]}>
+            {momentumDots.map((item, i) => {
+              let score = item?.completionScore ?? 0;
+              if (score > 1) score = score / 100;
+              const opacity = score > 0
+                ? config.layout.dotOpacityMin + score * (config.layout.dotOpacityMax - config.layout.dotOpacityMin)
+                : config.layout.dotOpacityMin;
+              return (
+                <View
+                  key={i}
+                  style={[
+                    {
+                      width: previewDotPx,
+                      height: previewDotPx,
+                      borderRadius: previewBorderRadius,
+                      backgroundColor: score > 0 ? config.colors.primary : config.colors.empty,
+                      opacity: score > 0 ? opacity : 0.4,
+                    }
+                  ]}
+                />
+              );
+            })}
+          </View>
+          {config.text.showText && (
+            <View style={innerStyles.textBlock}>
+              <Text style={[innerStyles.titleText, { color: config.text.titleColor }]} numberOfLines={1}>
+                {config.text.title}
+              </Text>
+              <Text style={[innerStyles.subtitleText, { color: config.text.subtitleColor }]} numberOfLines={1}>
+                {config.text.subtitle}
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      <View style={innerStyles.bottomContainer}>
+        {config.text.showQuote && config.text.quoteText ? (
+          <Text style={[innerStyles.quoteText, { color: config.text.subtitleColor }]} numberOfLines={3}>
+            "{config.text.quoteText}"
+          </Text>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -869,35 +900,46 @@ const innerStyles = StyleSheet.create({
   content: {
     flex: 1,
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingTop: 8,
+    paddingHorizontal: 32 * PREVIEW_SCALE, // match SAFE_PADDING_X
+    paddingTop: 0,
+    justifyContent: 'space-between',
   },
-  statusBar: { width: '100%', height: 16 },
+  statusBar: { width: '100%', height: 0 },
+  clockContainer: {
+    height: 160 * PREVIEW_SCALE, // exact top safe area match
+    alignItems: 'center',
+  },
   clock: { fontSize: 36, fontWeight: '200', color: '#fff', marginTop: 16, letterSpacing: -1 },
   dateText: { fontSize: 9, marginBottom: 12 },
-  gridCard: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 10,
-    padding: 10,
+  gridWrapper: {
+    flex: 1,
+    justifyContent: 'flex-end',
     alignItems: 'center',
+  },
+  gridCard: {
+    borderRadius: 24,
+    alignItems: 'center',
+    alignSelf: 'center',
     width: '100%',
-    marginTop: 8,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    width: '100%',
   },
   textBlock: { marginTop: 8, alignItems: 'center' },
   titleText: { fontSize: 9, fontWeight: '900', letterSpacing: 2 },
   subtitleText: { fontSize: 5, letterSpacing: 1.5, marginTop: 2 },
+  bottomContainer: {
+    height: 120 * PREVIEW_SCALE, // exact bottom safe area match
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   quoteText: {
     fontSize: 6,
     fontStyle: 'italic',
     textAlign: 'center',
     paddingHorizontal: 8,
-    marginTop: 10,
     lineHeight: 9,
     opacity: 0.7,
   },

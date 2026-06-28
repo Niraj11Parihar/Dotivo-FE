@@ -15,7 +15,7 @@ import { StatusBar } from 'expo-status-bar';
 import { theme } from '../../config/constants/theme';
 import { useGoalStore } from '../../store/slices/goalStore';
 import { GOAL_TEMPLATES, GoalPreset } from '../../config/constants/goalTemplates';
-import { Check, ArrowRight, SkipForward } from 'lucide-react-native';
+import { CheckIcon as Check, ArrowRightIcon as ArrowRight, SkipForwardIcon as SkipForward } from '../../svg';
 
 const { width } = Dimensions.get('window');
 

@@ -1,4 +1,4 @@
-import { CheckCircle2, Circle, PlusCircle, SkipForward, Quote } from 'lucide-react-native';
+import { CheckCircle2Icon as CheckCircle2, CircleIcon as Circle, PlusCircleIcon as PlusCircle, SkipForwardIcon as SkipForward, QuoteIcon as Quote } from '../../svg';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
