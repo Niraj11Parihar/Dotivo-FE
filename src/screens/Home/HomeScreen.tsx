@@ -388,7 +388,18 @@ export default function TodayScreen() {
 
         {/* ── Daily Goals ── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Daily Goals</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Daily Goals</Text>
+            {goals.length > 0 && (
+              <Pressable
+                onPress={() => router.push('/modal' as any)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <PlusCircle color={theme.colors.primaryLight} size={24} />
+              </Pressable>
+            )}
+          </View>
+
           {goals.length === 0 ? (
             <Pressable
               style={styles.emptyCard}
@@ -550,12 +561,17 @@ const styles = StyleSheet.create({
 
   // Sections
   section: { marginBottom: 28 },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '800',
     color: theme.colors.text,
     letterSpacing: -0.2,
-    marginBottom: 16,
   },
 
   // Grid

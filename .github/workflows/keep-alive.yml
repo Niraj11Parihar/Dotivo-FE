@@ -1,0 +1,14 @@
+name: Keep Backend Awake
+
+on:
+  schedule:
+    - cron: "*/14 * * * *" # Runs every 14 minutes
+  workflow_dispatch: # Allows manual triggering from GitHub UI
+
+jobs:
+  ping-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render Backend
+        run: curl -s https://dotivo-be.onrender.com > /dev/null
+        continue-on-error: true

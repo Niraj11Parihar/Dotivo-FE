@@ -7,6 +7,7 @@ export const WALLPAPER_SYNC_KEY = 'dotivo_wallpaper_payload';
 
 export type DotShape = 'square' | 'rounded' | 'circle';
 export type DotSize = 'small' | 'medium' | 'large';
+export type ElementPosition = 'top' | 'center' | 'bottom';
 
 export interface WallpaperConfig {
   colors: {
@@ -31,6 +32,9 @@ export interface WallpaperConfig {
     dotSize: DotSize;
     dotOpacityMin: number;
     dotOpacityMax: number;
+    gridPosition: ElementPosition;
+    textPosition: ElementPosition;
+    quotePosition: ElementPosition;
   };
   backgroundImage: {
     enabled: boolean;
@@ -67,8 +71,11 @@ export const DEFAULT_WALLPAPER_CONFIG: WallpaperConfig = {
     columns: 5,
     dotShape: 'rounded',
     dotSize: 'medium',
-    dotOpacityMin: 0.15,
+    dotOpacityMin: 0.4,
     dotOpacityMax: 1.0,
+    gridPosition: 'center',
+    textPosition: 'bottom',
+    quotePosition: 'bottom',
   },
   backgroundImage: {
     enabled: false,

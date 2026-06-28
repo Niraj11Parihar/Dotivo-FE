@@ -645,6 +645,51 @@ export default function WallpaperScreen() {
               </Pressable>
             ))}
           </View>
+          {/* Layout Positions */}
+          <Text style={[styles.inputLabel, { marginTop: 16 }]}>Dots Position</Text>
+          <View style={styles.chipRow}>
+            {['top', 'center', 'bottom'].map(pos => (
+              <Pressable
+                key={pos}
+                style={[styles.chip, { flex: 1 }, (config.layout.gridPosition || 'center') === pos && styles.chipActive]}
+                onPress={() => updateLayout({ gridPosition: pos as any })}
+              >
+                <Text style={[styles.chipText, { textTransform: 'capitalize' }, (config.layout.gridPosition || 'center') === pos && styles.chipTextActive]}>
+                  {pos}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <Text style={[styles.inputLabel, { marginTop: 16 }]}>Title & Subtitle Position</Text>
+          <View style={styles.chipRow}>
+            {['top', 'center', 'bottom'].map(pos => (
+              <Pressable
+                key={pos}
+                style={[styles.chip, { flex: 1 }, (config.layout.textPosition || 'bottom') === pos && styles.chipActive]}
+                onPress={() => updateLayout({ textPosition: pos as any })}
+              >
+                <Text style={[styles.chipText, { textTransform: 'capitalize' }, (config.layout.textPosition || 'bottom') === pos && styles.chipTextActive]}>
+                  {pos}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <Text style={[styles.inputLabel, { marginTop: 16 }]}>Quote & Win Count Position</Text>
+          <View style={styles.chipRow}>
+            {['top', 'center', 'bottom'].map(pos => (
+              <Pressable
+                key={pos}
+                style={[styles.chip, { flex: 1 }, (config.layout.quotePosition || 'bottom') === pos && styles.chipActive]}
+                onPress={() => updateLayout({ quotePosition: pos as any })}
+              >
+                <Text style={[styles.chipText, { textTransform: 'capitalize' }, (config.layout.quotePosition || 'bottom') === pos && styles.chipTextActive]}>
+                  {pos}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
 
           {/* Opacity range */}
           <View style={{ marginTop: 16 }}>
@@ -832,34 +877,53 @@ function WallpaperContentInner({
   const m = now.getMinutes().toString().padStart(2, '0');
   const timeString = `${h}:${m}`;
   const dateString = now.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+  const H = PREVIEW_HEIGHT;
+  const safeTop = 160 * PREVIEW_SCALE;
+  const safeBottom = 120 * PREVIEW_SCALE;
+
+  const rows = Math.ceil(30 / (config.layout.columns || 5));
+  const gridH = rows * previewDotPx + (rows - 1) * previewGapPx;
+
+  const getGridY = () => {
+    switch (config.layout.gridPosition) {
+      case 'top': return safeTop;
+      case 'bottom': return H - safeBottom - gridH;
+      default: return (H - gridH) / 2;
+    }
+  };
+
+  const getTextY = () => {
+    switch (config.layout.textPosition) {
+      case 'top': return safeTop + (40 * PREVIEW_SCALE);
+      case 'bottom': return H - safeBottom;
+      default: return H / 2;
+    }
+  };
+
+  const getQuoteY = () => {
+    switch (config.layout.quotePosition) {
+      case 'top': return safeTop + (100 * PREVIEW_SCALE);
+      case 'center': return (H / 2) + (60 * PREVIEW_SCALE);
+      default: return H - (40 * PREVIEW_SCALE);
+    }
+  };
 
   return (
     <View style={innerStyles.content}>
-      <View style={innerStyles.statusBar} />
-      <View style={innerStyles.clockContainer}>
+      <View style={[innerStyles.clockBlock, { top: safeTop * 0.4 }]}>
         {config.text.showText && (
           <>
-            <Text 
-              allowFontScaling={false} 
-              adjustsFontSizeToFit={true} 
-              style={innerStyles.clock}
-              numberOfLines={1}
-            >
+            <Text allowFontScaling={false} adjustsFontSizeToFit={true} style={innerStyles.clock} numberOfLines={1}>
               {timeString}
             </Text>
-            <Text 
-              allowFontScaling={false} 
-              adjustsFontSizeToFit={true} 
-              style={[innerStyles.dateText, { color: config.text.subtitleColor }]}
-              numberOfLines={1}
-            >
+            <Text allowFontScaling={false} adjustsFontSizeToFit={true} style={[innerStyles.dateText, { color: config.text.subtitleColor }]} numberOfLines={1}>
               {dateString}
             </Text>
           </>
         )}
       </View>
 
-      <View style={innerStyles.gridWrapper}>
+      <View style={[innerStyles.absoluteLayer, { top: getGridY() }]}>
         <View style={[innerStyles.gridCard, { paddingVertical: Math.max(24, previewDotPx * 1.5), paddingHorizontal: Math.max(16, previewDotPx * 1.2) }]}>
           <View style={[innerStyles.grid, { gap: previewGapPx, width: previewGridWidth }]}>
             {momentumDots.map((item, i) => {
@@ -877,48 +941,33 @@ function WallpaperContentInner({
                       height: previewDotPx,
                       borderRadius: previewBorderRadius,
                       backgroundColor: score > 0 ? config.colors.primary : config.colors.empty,
-                      opacity: score > 0 ? opacity : 0.4,
+                      opacity: opacity,
                     }
                   ]}
                 />
               );
             })}
           </View>
-          {config.text.showText && (
-            <View style={innerStyles.textBlock}>
-              <Text 
-                allowFontScaling={false} 
-                adjustsFontSizeToFit={true} 
-                style={[innerStyles.titleText, { color: config.text.titleColor }]} 
-                numberOfLines={1}
-              >
-                {config.text.title}
-              </Text>
-              <Text 
-                allowFontScaling={false} 
-                adjustsFontSizeToFit={true} 
-                style={[innerStyles.subtitleText, { color: config.text.subtitleColor }]} 
-                numberOfLines={1}
-              >
-                {config.text.subtitle}
-              </Text>
-            </View>
-          )}
         </View>
       </View>
+      {config.text.showText && (
+        <View style={[innerStyles.absoluteLayer, { top: getTextY() }]}>
+          <Text allowFontScaling={false} adjustsFontSizeToFit={true} style={[innerStyles.titleText, { color: config.text.titleColor }]} numberOfLines={1}>
+            {config.text.title}
+          </Text>
+          <Text allowFontScaling={false} adjustsFontSizeToFit={true} style={[innerStyles.subtitleText, { color: config.text.subtitleColor }]} numberOfLines={1}>
+            {config.text.subtitle}
+          </Text>
+        </View>
+      )}
 
-      <View style={innerStyles.bottomContainer}>
-        {config.text.showQuote && config.text.quoteText ? (
-          <Text 
-            allowFontScaling={false} 
-            adjustsFontSizeToFit={true} 
-            style={[innerStyles.quoteText, { color: config.text.subtitleColor }]} 
-            numberOfLines={1}
-          >
+      {config.text.showQuote && config.text.quoteText ? (
+        <View style={[innerStyles.absoluteLayer, { top: getQuoteY() }]}>
+          <Text allowFontScaling={false} adjustsFontSizeToFit={true} style={[innerStyles.quoteText, { color: config.text.subtitleColor }]} numberOfLines={1}>
             "{config.text.quoteText}"
           </Text>
-        ) : null}
-      </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -926,23 +975,25 @@ function WallpaperContentInner({
 const innerStyles = StyleSheet.create({
   content: {
     flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: 32 * PREVIEW_SCALE, // match SAFE_PADDING_X
-    paddingTop: 0,
-    justifyContent: 'space-between',
+    position: 'relative',
+    width: '100%',
+    height: '100%',
   },
-  statusBar: { width: '100%', height: 0 },
-  clockContainer: {
-    height: 160 * PREVIEW_SCALE, // exact top safe area match
+  absoluteLayer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    paddingHorizontal: 32 * PREVIEW_SCALE,
+  },
+  clockBlock: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
     alignItems: 'center',
   },
-  clock: { fontSize: 36, fontWeight: '200', color: '#fff', marginTop: 16, letterSpacing: -1 },
+  clock: { fontSize: 36, fontWeight: '200', color: '#fff', letterSpacing: -1 },
   dateText: { fontSize: 9, marginBottom: 12 },
-  gridWrapper: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-  },
   gridCard: {
     borderRadius: 24,
     alignItems: 'center',
@@ -954,14 +1005,8 @@ const innerStyles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
   },
-  textBlock: { marginTop: 8, alignItems: 'center' },
   titleText: { fontSize: 9, fontWeight: '900', letterSpacing: 2 },
   subtitleText: { fontSize: 5, letterSpacing: 1.5, marginTop: 2 },
-  bottomContainer: {
-    height: 120 * PREVIEW_SCALE, // exact bottom safe area match
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   quoteText: {
     fontSize: 6,
     fontStyle: 'italic',

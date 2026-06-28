@@ -90,6 +90,13 @@ class DotivoWallpaperService : WallpaperService() {
             var imageUri = ""
             var dotShape = "rounded"
             var dotSizeLevel = "medium"
+            var dotOpacityMin = 0.4f
+            var dotOpacityMax = 1.0f
+            var gridPosition = "center"
+            var textPosition = "bottom"
+            var quotePosition = "bottom"
+            var showText = true
+            var showQuote = true
 
             // Parse configuration
             try {
@@ -124,6 +131,9 @@ class DotivoWallpaperService : WallpaperService() {
                             
                             subtitle = textObj.optString("subtitle", subtitle)
                             subtitlePaint.color = parseColorSafe(textObj.optString("subtitleColor"), Color.parseColor("#94A3B8"))
+                            
+                            showText = textObj.optBoolean("showText", true)
+                            showQuote = textObj.optBoolean("showQuote", true)
                         }
 
                         val layoutObj = config.optJSONObject("layout")
@@ -131,6 +141,11 @@ class DotivoWallpaperService : WallpaperService() {
                             cols = layoutObj.optInt("columns", cols).coerceIn(3, 10)
                             dotShape = layoutObj.optString("dotShape", dotShape)
                             dotSizeLevel = layoutObj.optString("dotSize", dotSizeLevel)
+                            dotOpacityMin = layoutObj.optDouble("dotOpacityMin", 0.4).toFloat()
+                            dotOpacityMax = layoutObj.optDouble("dotOpacityMax", 1.0).toFloat()
+                            gridPosition = layoutObj.optString("gridPosition", "center")
+                            textPosition = layoutObj.optString("textPosition", "bottom")
+                            quotePosition = layoutObj.optString("quotePosition", "bottom")
                         }
 
                         val imgObj = config.optJSONObject("backgroundImage")
@@ -200,9 +215,12 @@ class DotivoWallpaperService : WallpaperService() {
             val gridW = cols * dotSize + (cols - 1) * gap
             val gridH = rows * dotSize + (rows - 1) * gap
             
-            // React Native gridWrapper is flex-end inside availableHeight
             val startX = (w - gridW) / 2f
-            val startY = safeTop + availableHeight - gridH // which equals h - safeBottom - gridH
+            val startY = when (gridPosition) {
+                "top" -> safeTop
+                "bottom" -> h - safeBottom - gridH
+                else -> (h - gridH) / 2f
+            }
 
             for (i in 0 until 30) {
                 val row = i / cols
@@ -218,27 +236,46 @@ class DotivoWallpaperService : WallpaperService() {
                 }
 
                 val score = scores.getOrNull(i)
-                dotPaint.color = if (score == null) colorFuture else lerpColor(score)
+                dotPaint.color = if (score == null || score <= 0.0) colorEmpty else lerpColor(score)
+                
+                val opacity = if (score != null && score > 0.0) {
+                    dotOpacityMin + (score.toFloat() * (dotOpacityMax - dotOpacityMin))
+                } else {
+                    dotOpacityMin
+                }
+                dotPaint.alpha = (opacity * 255).toInt().coerceIn(0, 255)
+
                 canvas.drawRoundRect(rect, radius, radius, dotPaint)
             }
 
-            // Draw text BELOW the grid, matching React Native's textBlock
+            // Draw text
             textPaint.textSize = w * 0.07f
-            val titleY = startY + gridH + (32f * density) // y is baseline, push it down
-            canvas.drawText(title, w / 2f, titleY, textPaint)
-
-            subtitlePaint.textSize = w * 0.035f
-            val subtitleY = titleY + (24f * density)
-            canvas.drawText(subtitle, w / 2f, subtitleY, subtitlePaint)
+            val titleY = when (textPosition) {
+                "top" -> safeTop + (40f * density)
+                "bottom" -> h - safeBottom
+                else -> h / 2f
+            }
+            if (showText) {
+                canvas.drawText(title, w / 2f, titleY, textPaint)
+                subtitlePaint.textSize = w * 0.035f
+                val subtitleY = titleY + (24f * density)
+                canvas.drawText(subtitle, w / 2f, subtitleY, subtitlePaint)
+            }
 
             val winCount = scores.count { it >= 1.0 }
-            val quoteY = h - (40f * density) // bottomContainer area
-            canvas.drawText(
-                "$winCount / 30 days won",
-                w / 2f,
-                quoteY,
-                subtitlePaint
-            )
+            val quoteY = when (quotePosition) {
+                "top" -> safeTop + (100f * density)
+                "center" -> (h / 2f) + (60f * density)
+                else -> h - (40f * density)
+            }
+            if (showQuote) {
+                canvas.drawText(
+                    "$winCount / 30 days won",
+                    w / 2f,
+                    quoteY,
+                    subtitlePaint
+                )
+            }
         }
     }
 }

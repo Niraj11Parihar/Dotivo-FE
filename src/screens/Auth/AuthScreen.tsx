@@ -46,7 +46,7 @@ export default function AuthScreen() {
           <View style={styles.logoArea}>
             <View style={styles.logoBox}>
               <View style={styles.logoGrid}>
-                {[1,1,0,1,0,1,1,0,1].map((f, i) => (
+                {[1, 1, 0, 1, 0, 1, 1, 0, 1].map((f, i) => (
                   <View
                     key={i}
                     style={[
@@ -61,82 +61,82 @@ export default function AuthScreen() {
             <Text style={styles.appTagline}>Your momentum, visualized.</Text>
           </View>
 
-          <ScrollView 
-            contentContainerStyle={styles.scrollContent} 
-            keyboardShouldPersistTaps="handled" 
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
             {/* Form Card */}
-          <View style={styles.card}>
-            <Text style={styles.title}>{isLogin ? 'Welcome back' : 'Create account'}</Text>
-            <Text style={styles.subtitle}>
-              {isLogin ? 'Sign in to track your wins today.' : 'Start your consistency grid.'}
-            </Text>
+            <View style={styles.card}>
+              <Text style={styles.title}>{isLogin ? 'Welcome back' : 'Create account'}</Text>
+              <Text style={styles.subtitle}>
+                {isLogin ? 'Sign in to track your wins today.' : 'Start your consistency grid.'}
+              </Text>
 
-            {!isLogin && (
+              {!isLogin && (
+                <TextInput
+                  placeholder="Full Name"
+                  placeholderTextColor={theme.colors.textMuted}
+                  style={styles.input}
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="words"
+                />
+              )}
+
               <TextInput
-                placeholder="Full Name"
+                placeholder="Email address"
                 placeholderTextColor={theme.colors.textMuted}
                 style={styles.input}
-                value={name}
-                onChangeText={setName}
-                autoCapitalize="words"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
               />
-            )}
 
-            <TextInput
-              placeholder="Email address"
-              placeholderTextColor={theme.colors.textMuted}
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
+              <View style={styles.passwordRow}>
+                <TextInput
+                  placeholder="Password"
+                  placeholderTextColor={theme.colors.textMuted}
+                  style={styles.passwordInput}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                />
+                <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+                  {showPassword ? (
+                    <EyeOff size={20} color={theme.colors.textMuted} />
+                  ) : (
+                    <Eye size={20} color={theme.colors.textMuted} />
+                  )}
+                </Pressable>
+              </View>
 
-            <View style={styles.passwordRow}>
-              <TextInput
-                placeholder="Password"
-                placeholderTextColor={theme.colors.textMuted}
-                style={styles.passwordInput}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-              />
-              <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
-                {showPassword ? (
-                  <EyeOff size={20} color={theme.colors.textMuted} />
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+              <Pressable
+                style={({ pressed }) => [styles.submitBtn, { opacity: pressed || isLoading ? 0.8 : 1 }]}
+                onPress={handleAuth}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#fff" />
                 ) : (
-                  <Eye size={20} color={theme.colors.textMuted} />
+                  <Text style={styles.submitBtnText}>{isLogin ? 'Sign In' : 'Create Account'}</Text>
                 )}
               </Pressable>
             </View>
 
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
+            {/* Toggle */}
             <Pressable
-              style={({ pressed }) => [styles.submitBtn, { opacity: pressed || isLoading ? 0.8 : 1 }]}
-              onPress={handleAuth}
-              disabled={isLoading}
+              onPress={() => setIsLogin(!isLogin)}
+              style={({ pressed }) => [styles.switchBtn, { opacity: pressed ? 0.7 : 1 }]}
             >
-              {isLoading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.submitBtnText}>{isLogin ? 'Sign In' : 'Create Account'}</Text>
-              )}
-            </Pressable>
-          </View>
-
-          {/* Toggle */}
-          <Pressable
-            onPress={() => setIsLogin(!isLogin)}
-            style={({ pressed }) => [styles.switchBtn, { opacity: pressed ? 0.7 : 1 }]}
-          >
-            <Text style={styles.switchText}>
-              {isLogin ? "Don't have an account? " : 'Already have an account? '}
-              <Text style={styles.switchTextBold}>{isLogin ? 'Sign up' : 'Sign in'}</Text>
-            </Text>
+              <Text style={styles.switchText}>
+                {isLogin ? "Don't have an account? " : 'Already have an account? '}
+                <Text style={styles.switchTextBold}>{isLogin ? 'Sign up' : 'Sign in'}</Text>
+              </Text>
             </Pressable>
 
             {/* Skip for now */}
