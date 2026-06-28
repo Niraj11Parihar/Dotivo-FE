@@ -99,8 +99,8 @@ export function calculateDotLayout(
   const baseDotSize = Math.min(maxDotByWidth, maxDotByHeight);
 
   let sizeMultiplier = 1;
-  if (selectedDotSize === 'small') sizeMultiplier = 0.72;
-  else if (selectedDotSize === 'medium') sizeMultiplier = 0.85;
+  if (selectedDotSize === 'small') sizeMultiplier = 0.55;
+  else if (selectedDotSize === 'medium') sizeMultiplier = 0.75;
   else if (selectedDotSize === 'large') sizeMultiplier = 1.0;
 
   let finalDotSize = Math.max(2, baseDotSize * sizeMultiplier);

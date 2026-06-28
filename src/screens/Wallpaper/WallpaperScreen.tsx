@@ -820,7 +820,7 @@ function WallpaperContentInner({
   previewGridWidth,
 }: {
   config: WallpaperConfig;
-  momentumDots: Array<{ completionScore: number } | undefined>;
+  momentumDots: ({ completionScore: number } | undefined)[];
   previewDotPx: number;
   previewGapPx: number;
   previewBorderRadius: number;
@@ -839,8 +839,20 @@ function WallpaperContentInner({
       <View style={innerStyles.clockContainer}>
         {config.text.showText && (
           <>
-            <Text style={innerStyles.clock}>{timeString}</Text>
-            <Text style={[innerStyles.dateText, { color: config.text.subtitleColor }]}>
+            <Text 
+              allowFontScaling={false} 
+              adjustsFontSizeToFit={true} 
+              style={innerStyles.clock}
+              numberOfLines={1}
+            >
+              {timeString}
+            </Text>
+            <Text 
+              allowFontScaling={false} 
+              adjustsFontSizeToFit={true} 
+              style={[innerStyles.dateText, { color: config.text.subtitleColor }]}
+              numberOfLines={1}
+            >
               {dateString}
             </Text>
           </>
@@ -874,10 +886,20 @@ function WallpaperContentInner({
           </View>
           {config.text.showText && (
             <View style={innerStyles.textBlock}>
-              <Text style={[innerStyles.titleText, { color: config.text.titleColor }]} numberOfLines={1}>
+              <Text 
+                allowFontScaling={false} 
+                adjustsFontSizeToFit={true} 
+                style={[innerStyles.titleText, { color: config.text.titleColor }]} 
+                numberOfLines={1}
+              >
                 {config.text.title}
               </Text>
-              <Text style={[innerStyles.subtitleText, { color: config.text.subtitleColor }]} numberOfLines={1}>
+              <Text 
+                allowFontScaling={false} 
+                adjustsFontSizeToFit={true} 
+                style={[innerStyles.subtitleText, { color: config.text.subtitleColor }]} 
+                numberOfLines={1}
+              >
                 {config.text.subtitle}
               </Text>
             </View>
@@ -887,7 +909,12 @@ function WallpaperContentInner({
 
       <View style={innerStyles.bottomContainer}>
         {config.text.showQuote && config.text.quoteText ? (
-          <Text style={[innerStyles.quoteText, { color: config.text.subtitleColor }]} numberOfLines={3}>
+          <Text 
+            allowFontScaling={false} 
+            adjustsFontSizeToFit={true} 
+            style={[innerStyles.quoteText, { color: config.text.subtitleColor }]} 
+            numberOfLines={1}
+          >
             "{config.text.quoteText}"
           </Text>
         ) : null}

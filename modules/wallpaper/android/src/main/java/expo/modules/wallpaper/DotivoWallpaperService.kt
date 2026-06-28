@@ -191,8 +191,8 @@ class DotivoWallpaperService : WallpaperService() {
             val baseDotSize = Math.min(maxDotByWidth, maxDotByHeight)
 
             var sizeMultiplier = 1.0f
-            if (dotSizeLevel == "small") sizeMultiplier = 0.72f
-            else if (dotSizeLevel == "medium") sizeMultiplier = 0.85f
+            if (dotSizeLevel == "small") sizeMultiplier = 0.55f
+            else if (dotSizeLevel == "medium") sizeMultiplier = 0.75f
             else if (dotSizeLevel == "large") sizeMultiplier = 1.0f
 
             val dotSize = Math.max(2f * density, baseDotSize * sizeMultiplier)
@@ -223,15 +223,16 @@ class DotivoWallpaperService : WallpaperService() {
             }
 
             // Draw text BELOW the grid, matching React Native's textBlock
-            val textBlockY = startY + gridH + (12f * density)
-            textPaint.textSize = Math.max(16f, dotSize * 0.8f) // Dynamic scale based on grid size
-            canvas.drawText(title, w / 2f, textBlockY, textPaint)
+            textPaint.textSize = w * 0.07f
+            val titleY = startY + gridH + (32f * density) // y is baseline, push it down
+            canvas.drawText(title, w / 2f, titleY, textPaint)
 
-            subtitlePaint.textSize = Math.max(10f, dotSize * 0.45f)
-            canvas.drawText(subtitle, w / 2f, textBlockY + (16f * density), subtitlePaint)
+            subtitlePaint.textSize = w * 0.035f
+            val subtitleY = titleY + (24f * density)
+            canvas.drawText(subtitle, w / 2f, subtitleY, subtitlePaint)
 
             val winCount = scores.count { it >= 1.0 }
-            val quoteY = h - (60f * density) // bottomContainer area
+            val quoteY = h - (40f * density) // bottomContainer area
             canvas.drawText(
                 "$winCount / 30 days won",
                 w / 2f,
