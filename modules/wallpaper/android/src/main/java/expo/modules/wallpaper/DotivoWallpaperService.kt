@@ -217,8 +217,8 @@ class DotivoWallpaperService : WallpaperService() {
             
             val startX = (w - gridW) / 2f
             val startY = when (gridPosition) {
-                "top" -> safeTop
-                "bottom" -> h - safeBottom - gridH
+                "top" -> safeTop + (60f * density)
+                "bottom" -> h - safeBottom - gridH - (40f * density)
                 else -> (h - gridH) / 2f
             }
 
@@ -236,7 +236,7 @@ class DotivoWallpaperService : WallpaperService() {
                 }
 
                 val score = scores.getOrNull(i)
-                dotPaint.color = if (score == null || score <= 0.0) colorEmpty else lerpColor(score)
+                dotPaint.color = if (score == null || score <= 0.0) colorEmpty else colorWin
                 
                 val opacity = if (score != null && score > 0.0) {
                     dotOpacityMin + (score.toFloat() * (dotOpacityMax - dotOpacityMin))
@@ -253,7 +253,7 @@ class DotivoWallpaperService : WallpaperService() {
             val titleY = when (textPosition) {
                 "top" -> safeTop + (40f * density)
                 "bottom" -> h - safeBottom
-                else -> h / 2f
+                else -> (h - gridH) / 2f - (30f * density)
             }
             if (showText) {
                 canvas.drawText(title, w / 2f, titleY, textPaint)
@@ -264,9 +264,9 @@ class DotivoWallpaperService : WallpaperService() {
 
             val winCount = scores.count { it >= 1.0 }
             val quoteY = when (quotePosition) {
-                "top" -> safeTop + (100f * density)
-                "center" -> (h / 2f) + (60f * density)
-                else -> h - (40f * density)
+                "top" -> safeTop + gridH + (120f * density)
+                "center" -> (h + gridH) / 2f + (50f * density)
+                else -> h - safeBottom + (60f * density)
             }
             if (showQuote) {
                 canvas.drawText(

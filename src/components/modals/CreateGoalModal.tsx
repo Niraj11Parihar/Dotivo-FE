@@ -101,7 +101,7 @@ export default function CreateGoalModal({ initialData }: CreateGoalModalProps) {
       icon: 'circle',
       frequencyType,
       selectedDays: frequencyType === 'specific_days' ? selectedDays : [],
-      reminderTime: reminderEnabled ? reminderTime : '',
+      reminderTime: reminderEnabled ? reminderTime : undefined,
     };
 
     try {

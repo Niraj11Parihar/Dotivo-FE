@@ -46,6 +46,7 @@ export interface HistoryItem {
   status: 'grey' | 'partial' | 'green';
   completionScore: number;
   mood?: number;
+  goals?: any[];
 }
 
 export interface WeeklyStats {
@@ -199,6 +200,8 @@ function calculateStreaks(history: HistoryItem[]): {
   let greenDaysThisMonth = 0;
   let currentStreak = 0;
   let currentStreakBroken = false;
+  const offset = new Date().getTimezoneOffset() * 60000;
+  const todayStr = new Date(new Date().getTime() - offset).toISOString().split('T')[0];
 
   for (const item of sorted) {
     if (item.date.startsWith(thisMonth) && item.status === 'green') {
@@ -207,6 +210,9 @@ function calculateStreaks(history: HistoryItem[]): {
     if (!currentStreakBroken) {
       if (item.status === 'green') {
         currentStreak++;
+      } else if (item.date === todayStr) {
+        // Today is allowed to be incomplete without breaking the streak
+        continue;
       } else {
         currentStreakBroken = true;
       }
@@ -500,6 +506,23 @@ export const useGoalStore = create<GoalState>()(
           };
 
           set({ currentPlan: finalPlan, isLoading: false });
+
+          const existingHistory = get().history;
+          if (existingHistory.length > 0 && existingHistory[0].date === date) {
+            const completedCount = goalsWithProgress.filter(g => g.status === 'green').length;
+            const totalActive = goalsWithProgress.filter(g => g.status !== 'skipped').length;
+            const completionScore = totalActive > 0 ? completedCount / totalActive : 0;
+
+            const updatedHistory = existingHistory.map((h, i) => i === 0 ? {
+              ...h,
+              status: finalPlan.summaryStatus,
+              completionScore,
+              goals: goalsWithProgress
+            } : h);
+
+            set({ history: updatedHistory });
+            syncWallpaperData(completionScore, updatedHistory);
+          }
         } catch (error: any) {
           const fallback = buildFallbackPlan(date, templates);
           const fallbackWithProgress: DayPlanGoal[] = fallback.goals.map((g) => {
@@ -516,17 +539,74 @@ export const useGoalStore = create<GoalState>()(
             summaryStatus: computeDaySummaryStatus(fallbackWithProgress),
           };
           set({ currentPlan: fallbackPlan, error: null, isLoading: false });
+
+          const existingHistory = get().history;
+          if (existingHistory.length > 0 && existingHistory[0].date === date) {
+            const completedCount = fallbackWithProgress.filter(g => g.status === 'green').length;
+            const totalActive = fallbackWithProgress.filter(g => g.status !== 'skipped').length;
+            const completionScore = totalActive > 0 ? completedCount / totalActive : 0;
+
+            const updatedHistory = existingHistory.map((h, i) => i === 0 ? {
+              ...h,
+              status: fallbackPlan.summaryStatus,
+              completionScore,
+              goals: fallbackWithProgress
+            } : h);
+
+            set({ history: updatedHistory });
+            syncWallpaperData(completionScore, updatedHistory);
+          }
         }
       },
 
       fetchHistory: async (range) => {
         const effectiveRange = range ?? get().historyRange;
         try {
-          const history = await planService.getHistory(effectiveRange);
-          set({ history, historyRange: effectiveRange });
+          const rawHistory = await planService.getHistory(effectiveRange);
+          console.log("RAW HISTORY FETCHED FROM BE:", JSON.stringify(rawHistory, null, 2));
+
+          const today = new Date();
+          const continuousHistory: HistoryItem[] = [];
+          for (let i = 0; i < effectiveRange; i++) {
+            const d = new Date(today);
+            d.setDate(today.getDate() - i);
+            const offset = d.getTimezoneOffset() * 60000;
+            const dateStr = new Date(d.getTime() - offset).toISOString().split('T')[0];
+
+            const existing = rawHistory.find((h: any) => h.date === dateStr);
+            const currentPlan = get().currentPlan;
+            if (currentPlan && currentPlan.date === dateStr) {
+              const completedCount = currentPlan.goals.filter(g => g.status === 'green').length;
+              const totalActive = currentPlan.goals.filter(g => g.status !== 'skipped').length;
+              const completionScore = totalActive > 0 ? completedCount / totalActive : 0;
+              continuousHistory.push({
+                date: dateStr,
+                status: currentPlan.summaryStatus,
+                completionScore,
+                goals: currentPlan.goals,
+              });
+            } else if (existing) {
+              continuousHistory.push(existing);
+            } else {
+              continuousHistory.push({
+                date: dateStr,
+                status: 'grey',
+                completionScore: 0,
+                goals: [],
+              });
+            }
+          }
+
+          console.log("PROCESSED HISTORY SET IN STORE:", JSON.stringify(continuousHistory, null, 2));
+
+          set({ history: continuousHistory, historyRange: effectiveRange });
           get().computeStats();
           get().computeWeeklyStats();
           get().checkAndAwardBadges();
+
+          // Keep wallpaper synced with fetched history
+          const todayScore = continuousHistory[0]?.completionScore ?? 0;
+          syncWallpaperData(todayScore, continuousHistory);
         } catch (error: any) {
           console.log('History sync skipped (offline):', error.message);
         }
@@ -651,6 +731,7 @@ export const useGoalStore = create<GoalState>()(
           date,
           status: summaryStatus,
           completionScore,
+          goals: updatedGoals,
         };
 
         const newHistory =

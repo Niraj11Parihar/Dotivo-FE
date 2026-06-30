@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import {
   ActivityIndicator, Alert, ScrollView, StyleSheet, Text,
-  TouchableOpacity, View, Platform, Share,
+  TouchableOpacity, View, Platform, Share, RefreshControl
 } from 'react-native';
 import { Card } from '../../../components/common/Card';
 import { ScreenWrapper } from '../../../components/common/ScreenWrapper';
@@ -61,10 +61,17 @@ export default function HistoryScreen() {
   } = useGoalStore();
 
   const shareRef = useRef<View>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchHistory(historyRange);
   }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchHistory(historyRange);
+    setRefreshing(false);
+  }, [fetchHistory, historyRange]);
 
   const greenDays = history.filter((d) => d.status === 'green').length;
 
@@ -92,7 +99,13 @@ export default function HistoryScreen() {
 
   return (
     <ScreenWrapper>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} />
+        }
+      >
         {/* Header */}
         <View style={styles.header}>
           <View>
@@ -298,6 +311,38 @@ export default function HistoryScreen() {
               <Text style={styles.legendText}>{item.label}</Text>
             </View>
           ))}
+        </View>
+
+        {/* Daily Log */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Daily Log</Text>
+          {history.map((day, idx) => {
+            const completedGoals = day.goals?.filter((g: any) => g.completedCount >= g.targetCount) || [];
+            if (completedGoals.length === 0 && day.status === 'grey' && idx !== 0) return null;
+            
+            return (
+              <View key={idx} style={styles.dayLogCard}>
+                <View style={styles.dayLogHeader}>
+                  <Text style={styles.dayLogDate}>
+                    {new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                  </Text>
+                  <View style={[styles.dot, { width: 12, height: 12, borderRadius: 6, backgroundColor: day.status === 'green' ? theme.colors.primary : day.status === 'partial' ? interpolateColor(0.5) : theme.colors.border }]} />
+                </View>
+                {completedGoals.length > 0 ? (
+                  <View style={styles.dayLogGoals}>
+                    {completedGoals.map((g: any, gIdx: number) => (
+                      <View key={gIdx} style={styles.dayLogGoalItem}>
+                        <Text style={styles.dayLogGoalIcon}>{g.icon || '🎯'}</Text>
+                        <Text style={styles.dayLogGoalTitle}>{g.title}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={styles.dayLogEmpty}>No goals completed</Text>
+                )}
+              </View>
+            );
+          })}
         </View>
 
         {isLoading && (
@@ -508,5 +553,48 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  dayLogCard: {
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.radii.l,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  dayLogHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  dayLogDate: {
+    color: theme.colors.text,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  dayLogGoals: {
+    gap: 8,
+  },
+  dayLogGoalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background,
+    padding: 10,
+    borderRadius: theme.radii.m,
+  },
+  dayLogGoalIcon: {
+    fontSize: 16,
+    marginRight: 10,
+  },
+  dayLogGoalTitle: {
+    color: theme.colors.text,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  dayLogEmpty: {
+    color: theme.colors.textMuted,
+    fontSize: 13,
+    fontStyle: 'italic',
   }
 });

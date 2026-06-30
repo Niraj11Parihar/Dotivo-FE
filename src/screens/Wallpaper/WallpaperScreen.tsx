@@ -335,16 +335,7 @@ export default function WallpaperScreen() {
   };
 
   // ── Preview Rendering ─────────────────────────────────────────────
-  const momentumDots = Array.from({ length: 30 }).map((_, i) => {
-    if (i === 0) {
-      const score = currentPlan?.goals
-        ? currentPlan.goals.filter(g => g.status === 'green').length /
-        Math.max(currentPlan.goals.length, 1)
-        : 0;
-      return { completionScore: score };
-    }
-    return history[i - 1];
-  });
+  const momentumDots = history.length > 0 ? history.slice(0, 30) : Array.from({ length: 30 }).map(() => ({ completionScore: 0 }));
 
   const layoutInfo = calculateDotLayout(
     width,
@@ -886,25 +877,25 @@ function WallpaperContentInner({
 
   const getGridY = () => {
     switch (config.layout.gridPosition) {
-      case 'top': return safeTop;
-      case 'bottom': return H - safeBottom - gridH;
+      case 'top': return safeTop + (60 * PREVIEW_SCALE);
+      case 'bottom': return H - safeBottom - gridH - (40 * PREVIEW_SCALE);
       default: return (H - gridH) / 2;
     }
   };
 
   const getTextY = () => {
     switch (config.layout.textPosition) {
-      case 'top': return safeTop + (40 * PREVIEW_SCALE);
+      case 'top': return safeTop;
       case 'bottom': return H - safeBottom;
-      default: return H / 2;
+      default: return (H / 2) - (gridH / 2) - (60 * PREVIEW_SCALE);
     }
   };
 
   const getQuoteY = () => {
     switch (config.layout.quotePosition) {
-      case 'top': return safeTop + (100 * PREVIEW_SCALE);
-      case 'center': return (H / 2) + (60 * PREVIEW_SCALE);
-      default: return H - (40 * PREVIEW_SCALE);
+      case 'top': return safeTop + gridH + (80 * PREVIEW_SCALE);
+      case 'center': return (H / 2) + (gridH / 2) + (20 * PREVIEW_SCALE);
+      default: return H - safeBottom + (30 * PREVIEW_SCALE);
     }
   };
 
